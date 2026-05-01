@@ -70,6 +70,8 @@ export default function Home() {
               year: "numeric",
               month: "long",
               day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
             })}
           </p>
         )}
