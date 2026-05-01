@@ -65,13 +65,11 @@ export default function Home() {
         </h1>
         {gameDate && (
           <p className="text-lg md:text-xl text-primary font-semibold mt-2">
-            {new Date(gameDate).toLocaleDateString("en-US", {
+            {new Date(gameDate + "T00:00:00").toLocaleDateString("en-US", {
               weekday: "long",
               year: "numeric",
               month: "long",
               day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
             })}
           </p>
         )}
