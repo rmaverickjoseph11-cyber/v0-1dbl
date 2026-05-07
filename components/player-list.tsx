@@ -8,6 +8,7 @@ interface Player {
   id: string
   name: string
   created_at: string
+  status?: "active" | "reserve" // Added status field
 }
 
 interface PlayerListProps {
@@ -38,6 +39,10 @@ export function PlayerList({ refreshKey }: PlayerListProps) {
     fetchPlayers()
   }, [refreshKey])
 
+  // Separate players into two lists
+  const activePlayers = players.filter((p) => p.status !== "reserve")
+  const reservePlayers = players.filter((p) => p.status === "reserve")
+
   return (
     <div className="w-full">
       <h2 className="text-xl font-semibold text-foreground mb-4">
@@ -53,28 +58,57 @@ export function PlayerList({ refreshKey }: PlayerListProps) {
           No players registered yet. Be the first to sign up!
         </p>
       ) : (
-        <ul className="space-y-2">
-          {players.map((player, index) => (
-            <li 
-              key={player.id} 
-              className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
-            >
-              <span className="text-foreground">
-                <span className="font-medium text-primary mr-2">{index + 1}.</span>
-                {player.name}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {new Date(player.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-8">
+          {/* Main Roster Section */}
+          <ul className="space-y-2">
+            {activePlayers.map((player, index) => (
+              <li 
+                key={player.id} 
+                className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
+              >
+                <span className="text-foreground">
+                  <span className="font-medium text-primary mr-2">{index + 1}.</span>
+                  {player.name}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {new Date(player.created_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Reserve List Section - Only shows if reserves exist */}
+          {reservePlayers.length > 0 && (
+            <div className="pt-4 border-t-2 border-dashed border-border">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                Reserve List ({reservePlayers.length})
+              </h3>
+              <ul className="space-y-2">
+                {reservePlayers.map((player, index) => (
+                  <li 
+                    key={player.id} 
+                    className="flex items-center justify-between py-2 border-b border-border last:border-b-0 opacity-70"
+                  >
+                    <span className="text-foreground italic">
+                      <span className="font-medium text-muted-foreground mr-2">R{index + 1}.</span>
+                      {player.name}
+                    </span>
+                    <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground uppercase font-semibold">
+                      Waiting
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
