@@ -11,6 +11,7 @@ interface Player {
   id: string
   name: string
   created_at: string
+  status?: "active" | "reserve" // Added status to the interface
 }
 
 interface RegistrationSettings {
@@ -190,27 +191,28 @@ export default function AdminPage() {
   }
   
   const handleToggleStatus = async (player: Player) => {
-  const newStatus = player.status === "reserve" ? "active" : "reserve"
-  const supabase = createClient()
-  
-  // Optimistic update in UI
-  setPlayers(players.map(p => 
-    p.id === player.id ? { ...p, status: newStatus } : p
-  ))
-
-  const { error } = await supabase
-    .from("players")
-    .update({ status: newStatus })
-    .eq("id", player.id)
-
-  if (error) {
-    console.error("Error updating status:", error)
-    // Rollback if database call fails
+    const newStatus = player.status === "reserve" ? "active" : "reserve"
+    const supabase = createClient()
+    
+    // Optimistic update in UI
     setPlayers(players.map(p => 
-      p.id === player.id ? { ...p, status: player.status } : p
+      p.id === player.id ? { ...p, status: newStatus } : p
     ))
+
+    const { error } = await supabase
+      .from("players")
+      .update({ status: newStatus })
+      .eq("id", player.id)
+
+    if (error) {
+      console.error("Error updating status:", error)
+      // Rollback if database call fails
+      setPlayers(players.map(p => 
+        p.id === player.id ? { ...p, status: player.status } : p
+      ))
+    }
   }
-}
+
   const handleLogout = () => {
     sessionStorage.removeItem("isAdmin")
     router.push("/")
@@ -350,7 +352,10 @@ export default function AdminPage() {
               ) : (
                 <ul className="divide-y divide-border">
                   {players.map((player, index) => (
-                    <li key={player.id} className="py-3 flex items-center gap-4">
+                    <li 
+                      key={player.id} 
+                      className={`py-3 flex items-center gap-4 ${player.status === 'reserve' ? 'opacity-60' : ''}`}
+                    >
                       <span className="text-primary font-medium w-8">{index + 1}.</span>
                       
                       {editingId === player.id ? (
@@ -380,7 +385,15 @@ export default function AdminPage() {
                         </div>
                       ) : (
                         <>
-                          <span className="flex-1 text-card-foreground">{player.name}</span>
+                          <div className="flex-1 flex items-center gap-3">
+                            <span className="text-card-foreground font-medium">{player.name}</span>
+                            {player.status === "reserve" && (
+                              <span className="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">
+                                Reserve
+                              </span>
+                            )}
+                          </div>
+
                           <span className="text-sm text-muted-foreground">
                             {new Date(player.created_at).toLocaleDateString("en-US", {
                               month: "short",
@@ -389,6 +402,13 @@ export default function AdminPage() {
                             })}
                           </span>
                           <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant={player.status === "reserve" ? "secondary" : "outline"}
+                              onClick={() => handleToggleStatus(player)}
+                            >
+                              {player.status === "reserve" ? "Make Active" : "Make Reserve"}
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
