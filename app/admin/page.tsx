@@ -11,13 +11,14 @@ interface Player {
   id: string
   name: string
   created_at: string
-  status?: "active" | "reserve" // Added status to the interface
+  status?: "active" | "reserve"
 }
 
 interface RegistrationSettings {
   enabled: boolean
   start_date: string | null
   end_date: string | null
+  default_to_reserve: boolean // Added this property
 }
 
 interface GameDateSettings {
@@ -36,6 +37,7 @@ export default function AdminPage() {
     enabled: true,
     start_date: null,
     end_date: null,
+    default_to_reserve: false, // Initialized this
   })
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [gameDate, setGameDate] = useState<GameDateSettings>({
@@ -44,7 +46,6 @@ export default function AdminPage() {
   const [isSavingGameDate, setIsSavingGameDate] = useState(false)
 
   useEffect(() => {
-    // Check if admin is logged in
     const isAdmin = sessionStorage.getItem("isAdmin")
     if (isAdmin !== "true") {
       router.push("/")
@@ -58,7 +59,6 @@ export default function AdminPage() {
     setIsLoading(true)
     const supabase = createClient()
     
-    // Fetch players
     const { data: playersData } = await supabase
       .from("players")
       .select("*")
@@ -68,7 +68,6 @@ export default function AdminPage() {
       setPlayers(playersData)
     }
 
-    // Fetch settings
     const { data: settingsData } = await supabase
       .from("settings")
       .select("*")
@@ -76,10 +75,13 @@ export default function AdminPage() {
       .single()
     
     if (settingsData) {
-      setSettings(settingsData.value as RegistrationSettings)
+      // Merge with default values to ensure default_to_reserve exists
+      setSettings({
+        ...{ enabled: true, start_date: null, end_date: null, default_to_reserve: false },
+        ...(settingsData.value as RegistrationSettings)
+      })
     }
 
-    // Fetch game date
     const { data: gameDateData } = await supabase
       .from("settings")
       .select("*")
@@ -155,7 +157,6 @@ export default function AdminPage() {
     setIsSavingGameDate(true)
     const supabase = createClient()
     
-    // Try to update first, if it doesn't exist, insert
     const { data: existing } = await supabase
       .from("settings")
       .select("*")
@@ -194,7 +195,6 @@ export default function AdminPage() {
     const newStatus = player.status === "reserve" ? "active" : "reserve"
     const supabase = createClient()
     
-    // Optimistic update in UI
     setPlayers(players.map(p => 
       p.id === player.id ? { ...p, status: newStatus } : p
     ))
@@ -206,7 +206,6 @@ export default function AdminPage() {
 
     if (error) {
       console.error("Error updating status:", error)
-      // Rollback if database call fails
       setPlayers(players.map(p => 
         p.id === player.id ? { ...p, status: player.status } : p
       ))
@@ -229,7 +228,6 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen px-4 py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Admin Dashboard</h1>
@@ -246,12 +244,10 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-8">
-            {/* Game Date Settings */}
             <section className="bg-card rounded-lg border border-border p-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-4">
                 Game Date
               </h2>
-              
               <div className="flex flex-col gap-4">
                 <div>
                   <label className="block text-sm font-medium text-card-foreground mb-1.5">
@@ -267,7 +263,6 @@ export default function AdminPage() {
                     This date will be displayed on the registration page
                   </p>
                 </div>
-
                 <Button 
                   onClick={handleSaveGameDate} 
                   disabled={isSavingGameDate}
@@ -278,13 +273,12 @@ export default function AdminPage() {
               </div>
             </section>
 
-            {/* Registration Settings */}
             <section className="bg-card rounded-lg border border-border p-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-4">
                 Registration Settings
               </h2>
               
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-6">
                 <div className="flex items-center gap-3">
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -298,6 +292,27 @@ export default function AdminPage() {
                   <span className="text-card-foreground font-medium">
                     Registration {settings.enabled ? "Enabled" : "Disabled"}
                   </span>
+                </div>
+
+                {/* NEW TOGGLE FOR RESERVE STATUS */}
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border border-border/50">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.default_to_reserve}
+                      onChange={(e) => setSettings({ ...settings, default_to_reserve: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                  </label>
+                  <div className="flex flex-col">
+                    <span className="text-card-foreground font-medium">
+                      Force New Players to Reserve
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      When active, all new sign-ups are automatically put on the Waitlist.
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -341,7 +356,6 @@ export default function AdminPage() {
               </div>
             </section>
 
-            {/* Player Management */}
             <section className="bg-card rounded-lg border border-border p-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-4">
                 Registered Players ({players.length})
