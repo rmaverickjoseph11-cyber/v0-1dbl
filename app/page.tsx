@@ -77,7 +77,7 @@ export default function Home() {
 
       {/* Two Column Layout */}
       <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl mx-auto flex-1">
-        {/* Left Side - Player List */}
+        {/* Left Side - Player List (Separated Logic Inside Component) */}
         <section className="flex-1 md:border-r md:border-border md:pr-8">
           <PlayerList refreshKey={refreshKey} />
         </section>
