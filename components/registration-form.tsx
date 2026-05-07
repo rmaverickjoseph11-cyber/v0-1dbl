@@ -14,6 +14,7 @@ interface RegistrationSettings {
   enabled: boolean
   start_date: string | null
   end_date: string | null
+  default_to_reserve?: boolean // Added this property
 }
 
 export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
@@ -23,6 +24,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(true)
   const [registrationMessage, setRegistrationMessage] = useState<string | null>(null)
+  const [isReserveOnly, setIsReserveOnly] = useState(false) // Added state to track reserve status
 
   useEffect(() => {
     checkRegistrationWindow()
@@ -42,6 +44,11 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       const settings = data.value as RegistrationSettings
       const now = new Date()
       
+      // Check if "Force to Reserve" is enabled
+      if (settings.default_to_reserve) {
+        setIsReserveOnly(true)
+      }
+
       // Check if registration is enabled
       if (!settings.enabled) {
         setIsRegistrationOpen(false)
@@ -100,9 +107,16 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
     try {
       const supabase = createClient()
+      
+      // Determine initial status based on the setting we fetched earlier
+      const initialStatus = isReserveOnly ? "reserve" : "active"
+
       const { error: insertError } = await supabase
         .from("players")
-        .insert({ name: name.trim() })
+        .insert({ 
+          name: name.trim(),
+          status: initialStatus // Insert with the correct status
+        })
 
       if (insertError) {
         throw insertError
@@ -136,6 +150,15 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-md">
+      {/* Visual heads-up if registration is forced to reserve */}
+      {isReserveOnly && (
+        <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-2 text-center">
+           <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
+             Adding to Reserve List
+           </p>
+        </div>
+      )}
+      
       <div className="flex gap-3">
         <Input
           type="text"
