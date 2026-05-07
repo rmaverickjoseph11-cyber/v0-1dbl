@@ -8,7 +8,7 @@ interface Player {
   id: string
   name: string
   created_at: string
-  status?: "active" | "reserve" // Added status field
+  status?: "active" | "reserve"
 }
 
 interface PlayerListProps {
@@ -39,9 +39,19 @@ export function PlayerList({ refreshKey }: PlayerListProps) {
     fetchPlayers()
   }, [refreshKey])
 
-  // Separate players into two lists
   const activePlayers = players.filter((p) => p.status !== "reserve")
   const reservePlayers = players.filter((p) => p.status === "reserve")
+
+  // Helper function to format the date to keep the JSX clean
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    })
+  }
 
   return (
     <div className="w-full">
@@ -71,19 +81,13 @@ export function PlayerList({ refreshKey }: PlayerListProps) {
                   {player.name}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {new Date(player.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {formatDate(player.created_at)}
                 </span>
               </li>
             ))}
           </ul>
 
-          {/* Reserve List Section - Only shows if reserves exist */}
+          {/* Reserve List Section */}
           {reservePlayers.length > 0 && (
             <div className="pt-4 border-t-2 border-dashed border-border">
               <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
@@ -100,8 +104,9 @@ export function PlayerList({ refreshKey }: PlayerListProps) {
                       <span className="font-medium text-muted-foreground mr-2">R{index + 1}.</span>
                       {player.name}
                     </span>
-                    <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground uppercase font-semibold">
-                      Waiting
+                    {/* Replaced "Waiting" badge with the registration timestamp */}
+                    <span className="text-sm text-muted-foreground">
+                      {formatDate(player.created_at)}
                     </span>
                   </li>
                 ))}
