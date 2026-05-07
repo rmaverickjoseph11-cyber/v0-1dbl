@@ -188,7 +188,29 @@ export default function AdminPage() {
     }
     setIsSavingGameDate(false)
   }
+  
+  const handleToggleStatus = async (player: Player) => {
+  const newStatus = player.status === "reserve" ? "active" : "reserve"
+  const supabase = createClient()
+  
+  // Optimistic update in UI
+  setPlayers(players.map(p => 
+    p.id === player.id ? { ...p, status: newStatus } : p
+  ))
 
+  const { error } = await supabase
+    .from("players")
+    .update({ status: newStatus })
+    .eq("id", player.id)
+
+  if (error) {
+    console.error("Error updating status:", error)
+    // Rollback if database call fails
+    setPlayers(players.map(p => 
+      p.id === player.id ? { ...p, status: player.status } : p
+    ))
+  }
+}
   const handleLogout = () => {
     sessionStorage.removeItem("isAdmin")
     router.push("/")
