@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Image from "next/image" // Recommendation: Optimized Image component
+import Image from "next/image"
 import { RegistrationForm } from "@/components/registration-form"
 import { PlayerList } from "@/components/player-list"
 import { AdminLoginModal } from "@/components/admin-login-modal"
@@ -11,21 +11,37 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
   const [gameDate, setGameDate] = useState<string | null>(null)
+  
+  // NEW: State for Game Rules
+  const [rules, setRules] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchGameDate = async () => {
+    const fetchData = async () => {
       const supabase = createClient()
-      const { data } = await supabase
+      
+      // Fetch Game Date
+      const { data: dateData } = await supabase
         .from("settings")
         .select("value")
         .eq("key", "game_date")
         .single()
       
-      if (data?.value?.date) {
-        setGameDate(data.value.date)
+      if (dateData?.value?.date) {
+        setGameDate(dateData.value.date)
+      }
+
+      // NEW: Fetch Game Rules
+      const { data: rulesData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "game_rules")
+        .single()
+
+      if (rulesData?.value?.text) {
+        setRules(rulesData.value.text)
       }
     }
-    fetchGameDate()
+    fetchData()
   }, [])
 
   const handleRegistrationSuccess = () => {
@@ -56,7 +72,6 @@ export default function Home() {
 
       {/* Header */}
       <header className="text-center mb-8">
-        {/* Recommendation: Using Next.js Image for better performance */}
         <div className="relative h-20 md:h-24 w-40 mx-auto mb-3">
           <Image
             src="/1dbl-logo.jpg"
@@ -69,7 +84,6 @@ export default function Home() {
         <h1 className="text-3xl md:text-4xl font-bold text-foreground text-balance">
           1 Day Basketball League
         </h1>
-        {/* Recommendation: min-h prevents layout shift while loading */}
         <div className="min-h-[28px]">
           {gameDate && (
             <p className="text-lg md:text-xl text-primary font-semibold mt-2">
@@ -91,7 +105,7 @@ export default function Home() {
           <PlayerList refreshKey={refreshKey} />
         </section>
 
-        {/* Right Side - Registration Form */}
+        {/* Right Side - Registration Form & Rules */}
         <section className="flex-1 md:pl-8">
           <h2 className="text-xl font-semibold text-foreground mb-4">
             Player Registration
@@ -99,11 +113,23 @@ export default function Home() {
           <p className="text-muted-foreground mb-2">
             Enter your name below to join the competition.
           </p>
-          {/* New Code Requirement Message */}
           <p className="text-sm text-amber-600 dark:text-amber-500 font-medium mb-6 italic">
             Note: Code will be used if you want to delete your name.
           </p>
+          
           <RegistrationForm onSuccess={handleRegistrationSuccess} />
+
+          {/* NEW: Display Game Rules Section */}
+          {rules && (
+            <div className="mt-8 p-4 bg-muted/50 rounded-lg border border-border">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-2">
+                Game Rules & Info
+              </h3>
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {rules}
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
