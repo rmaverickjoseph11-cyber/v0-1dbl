@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image" // Recommendation: Optimized Image component
 import { RegistrationForm } from "@/components/registration-form"
 import { PlayerList } from "@/components/player-list"
 import { AdminLoginModal } from "@/components/admin-login-modal"
@@ -55,29 +56,37 @@ export default function Home() {
 
       {/* Header */}
       <header className="text-center mb-8">
-        <img
-          src="/1dbl-logo.jpg"
-          alt="1DBL - 1 Day Basketball League"
-          className="h-20 md:h-24 w-auto mx-auto mb-3"
-        />
+        {/* Recommendation: Using Next.js Image for better performance */}
+        <div className="relative h-20 md:h-24 w-40 mx-auto mb-3">
+          <Image
+            src="/1dbl-logo.jpg"
+            alt="1DBL - 1 Day Basketball League"
+            fill
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+        </div>
         <h1 className="text-3xl md:text-4xl font-bold text-foreground text-balance">
           1 Day Basketball League
         </h1>
-        {gameDate && (
-          <p className="text-lg md:text-xl text-primary font-semibold mt-2">
-            {new Date(gameDate + "T00:00:00").toLocaleDateString("en-US", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        )}
+        {/* Recommendation: min-h prevents layout shift while loading */}
+        <div className="min-h-[28px]">
+          {gameDate && (
+            <p className="text-lg md:text-xl text-primary font-semibold mt-2">
+              {new Date(gameDate + "T00:00:00").toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          )}
+        </div>
       </header>
 
       {/* Two Column Layout */}
       <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl mx-auto flex-1">
-        {/* Left Side - Player List (Separated Logic Inside Component) */}
+        {/* Left Side - Player List */}
         <section className="flex-1 md:border-r md:border-border md:pr-8">
           <PlayerList refreshKey={refreshKey} />
         </section>
@@ -87,8 +96,12 @@ export default function Home() {
           <h2 className="text-xl font-semibold text-foreground mb-4">
             Player Registration
           </h2>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-2">
             Enter your name below to join the competition.
+          </p>
+          {/* New Code Requirement Message */}
+          <p className="text-sm text-amber-600 dark:text-amber-500 font-medium mb-6 italic">
+            Note: Code will be used if you want to delete your name.
           </p>
           <RegistrationForm onSuccess={handleRegistrationSuccess} />
         </section>
