@@ -92,8 +92,8 @@ export default function Home() {
       </button>
 
       {/* Header */}
-      <header className="text-center mb-8">
-        <div className="relative h-24 md:h-32 w-full max-w-lg mx-auto mb-4">
+      <header className="text-center mb-12">
+        <div className="relative h-40 md:h-56 w-full max-w-2xl mx-auto mb-6">
           <Image
             // Use the uploaded image if available, otherwise fallback to your local logo
             src={branding.image_url || "/1dbl-logo.jpg"}
@@ -105,13 +105,13 @@ export default function Home() {
         </div>
         
         {/* Dynamic Title from Admin */}
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground text-balance">
+        <h1 className="text-3xl md:text-5xl font-bold text-foreground text-balance">
           {branding.title}
         </h1>
 
         <div className="min-h-[28px]">
           {gameDate && (
-            <p className="text-lg md:text-xl text-primary font-semibold mt-2">
+            <p className="text-xl md:text-2xl text-primary font-semibold mt-3">
               {new Date(gameDate + "T00:00:00").toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
