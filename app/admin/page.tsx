@@ -18,7 +18,8 @@ interface RegistrationSettings {
   enabled: boolean
   start_date: string | null
   end_date: string | null
-  default_to_reserve: boolean // Added this property
+  default_to_reserve: boolean
+  max_players: number // Recommendation: Added for automatic queue logic
 }
 
 interface GameDateSettings {
@@ -37,7 +38,8 @@ export default function AdminPage() {
     enabled: true,
     start_date: null,
     end_date: null,
-    default_to_reserve: false, // Initialized this
+    default_to_reserve: false,
+    max_players: 20, // Initialized default
   })
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [gameDate, setGameDate] = useState<GameDateSettings>({
@@ -75,9 +77,8 @@ export default function AdminPage() {
       .single()
     
     if (settingsData) {
-      // Merge with default values to ensure default_to_reserve exists
       setSettings({
-        ...{ enabled: true, start_date: null, end_date: null, default_to_reserve: false },
+        ...{ enabled: true, start_date: null, end_date: null, default_to_reserve: false, max_players: 20 },
         ...(settingsData.value as RegistrationSettings)
       })
     }
@@ -225,6 +226,9 @@ export default function AdminPage() {
     )
   }
 
+  // Recommendation: Calculate current active count for the UI
+  const activeCount = players.filter(p => p.status !== 'reserve').length;
+
   return (
     <main className="min-h-screen px-4 py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
@@ -279,22 +283,39 @@ export default function AdminPage() {
               </h2>
               
               <div className="flex flex-col gap-6">
-                <div className="flex items-center gap-3">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.enabled}
-                      onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
-                      className="sr-only peer"
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                  <div className="flex items-center gap-3">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.enabled}
+                        onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                    <span className="text-card-foreground font-medium whitespace-nowrap">
+                      Registration {settings.enabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+
+                  {/* Recommendation: Max Players Input */}
+                  <div className="flex items-center gap-3 flex-1">
+                    <label className="text-sm font-medium text-card-foreground whitespace-nowrap">
+                      Max Active Players:
+                    </label>
+                    <Input
+                      type="number"
+                      value={settings.max_players}
+                      onChange={(e) => setSettings({ ...settings, max_players: parseInt(e.target.value) || 0 })}
+                      className="w-20 h-9"
                     />
-                    <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                  </label>
-                  <span className="text-card-foreground font-medium">
-                    Registration {settings.enabled ? "Enabled" : "Disabled"}
-                  </span>
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${activeCount >= settings.max_players ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                      {activeCount} / {settings.max_players}
+                    </span>
+                  </div>
                 </div>
 
-                {/* NEW TOGGLE FOR RESERVE STATUS */}
                 <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border border-border/50">
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -310,7 +331,7 @@ export default function AdminPage() {
                       Force New Players to Reserve
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      When active, all new sign-ups are automatically put on the Waitlist.
+                      Manual override. Also triggers automatically if Max Players ({settings.max_players}) is reached.
                     </span>
                   </div>
                 </div>
@@ -326,9 +347,6 @@ export default function AdminPage() {
                       onChange={(e) => setSettings({ ...settings, start_date: e.target.value || null })}
                       className="w-full"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Leave empty for no start restriction
-                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-card-foreground mb-1.5">
@@ -340,9 +358,6 @@ export default function AdminPage() {
                       onChange={(e) => setSettings({ ...settings, end_date: e.target.value || null })}
                       className="w-full"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Leave empty for no end restriction
-                    </p>
                   </div>
                 </div>
 
