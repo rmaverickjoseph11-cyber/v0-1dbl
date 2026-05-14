@@ -12,6 +12,7 @@ interface Player {
   name: string
   created_at: string
   status?: "active" | "reserve"
+  payment_status?: "paid" | "pending" // Added payment status to interface
 }
 
 interface RegistrationSettings {
@@ -19,7 +20,7 @@ interface RegistrationSettings {
   start_date: string | null
   end_date: string | null
   default_to_reserve: boolean
-  max_players: number // Recommendation: Added for automatic queue logic
+  max_players: number 
 }
 
 interface GameDateSettings {
@@ -39,7 +40,7 @@ export default function AdminPage() {
     start_date: null,
     end_date: null,
     default_to_reserve: false,
-    max_players: 20, // Initialized default
+    max_players: 20, 
   })
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [gameDate, setGameDate] = useState<GameDateSettings>({
@@ -213,6 +214,28 @@ export default function AdminPage() {
     }
   }
 
+  // NEW: Payment Toggle Function
+  const handleTogglePayment = async (player: Player) => {
+    const newPaymentStatus = player.payment_status === "paid" ? "pending" : "paid"
+    const supabase = createClient()
+    
+    setPlayers(players.map(p => 
+      p.id === player.id ? { ...p, payment_status: newPaymentStatus } : p
+    ))
+
+    const { error } = await supabase
+      .from("players")
+      .update({ payment_status: newPaymentStatus })
+      .eq("id", player.id)
+
+    if (error) {
+      console.error("Error updating payment:", error)
+      setPlayers(players.map(p => 
+        p.id === player.id ? { ...p, payment_status: player.payment_status } : p
+      ))
+    }
+  }
+
   const handleLogout = () => {
     sessionStorage.removeItem("isAdmin")
     router.push("/")
@@ -226,7 +249,6 @@ export default function AdminPage() {
     )
   }
 
-  // Recommendation: Calculate current active count for the UI
   const activeCount = players.filter(p => p.status !== 'reserve').length;
 
   return (
@@ -299,7 +321,6 @@ export default function AdminPage() {
                     </span>
                   </div>
 
-                  {/* Recommendation: Max Players Input */}
                   <div className="flex items-center gap-3 flex-1">
                     <label className="text-sm font-medium text-card-foreground whitespace-nowrap">
                       Max Active Players:
@@ -383,7 +404,7 @@ export default function AdminPage() {
                   {players.map((player, index) => (
                     <li 
                       key={player.id} 
-                      className={`py-3 flex items-center gap-4 ${player.status === 'reserve' ? 'opacity-60' : ''}`}
+                      className={`py-3 flex items-center gap-4 ${player.status === 'reserve' ? 'opacity-80' : ''}`}
                     >
                       <span className="text-primary font-medium w-8">{index + 1}.</span>
                       
@@ -416,6 +437,16 @@ export default function AdminPage() {
                         <>
                           <div className="flex-1 flex items-center gap-3">
                             <span className="text-card-foreground font-medium">{player.name}</span>
+                            
+                            {/* PAYMENT STATUS BADGE */}
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold ${
+                              player.payment_status === 'paid' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {player.payment_status || 'pending'}
+                            </span>
+
                             {player.status === "reserve" && (
                               <span className="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">
                                 Reserve
@@ -431,6 +462,16 @@ export default function AdminPage() {
                             })}
                           </span>
                           <div className="flex items-center gap-2">
+                            {/* PAYMENT TOGGLE BUTTON */}
+                            <Button
+                              size="sm"
+                              variant={player.payment_status === "paid" ? "default" : "outline"}
+                              className={player.payment_status === "paid" ? "bg-green-600 hover:bg-green-700" : ""}
+                              onClick={() => handleTogglePayment(player)}
+                            >
+                              {player.payment_status === "paid" ? "Mark Pending" : "Mark Paid"}
+                            </Button>
+
                             <Button
                               size="sm"
                               variant={player.status === "reserve" ? "secondary" : "outline"}
