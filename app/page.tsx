@@ -7,13 +7,23 @@ import { PlayerList } from "@/components/player-list"
 import { AdminLoginModal } from "@/components/admin-login-modal"
 import { createClient } from "@/lib/supabase/client"
 
+// Interface to match our Admin settings
+interface BrandingSettings {
+  title: string
+  image_url: string | null
+}
+
 export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
   const [gameDate, setGameDate] = useState<string | null>(null)
-  
-  // NEW: State for Game Rules
   const [rules, setRules] = useState<string | null>(null)
+  
+  // NEW: Branding State
+  const [branding, setBranding] = useState<BrandingSettings>({
+    title: "1 Day Basketball League",
+    image_url: null,
+  })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,7 +40,7 @@ export default function Home() {
         setGameDate(dateData.value.date)
       }
 
-      // NEW: Fetch Game Rules
+      // Fetch Game Rules
       const { data: rulesData } = await supabase
         .from("settings")
         .select("value")
@@ -39,6 +49,17 @@ export default function Home() {
 
       if (rulesData?.value?.text) {
         setRules(rulesData.value.text)
+      }
+
+      // NEW: Fetch Branding Configuration (Title & Banner)
+      const { data: brandingData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "branding_config")
+        .single()
+      
+      if (brandingData?.value) {
+        setBranding(brandingData.value as BrandingSettings)
       }
     }
     fetchData()
@@ -72,18 +93,22 @@ export default function Home() {
 
       {/* Header */}
       <header className="text-center mb-8">
-        <div className="relative h-20 md:h-24 w-40 mx-auto mb-3">
+        <div className="relative h-24 md:h-32 w-full max-w-lg mx-auto mb-4">
           <Image
-            src="/1dbl-logo.jpg"
-            alt="1DBL - 1 Day Basketball League"
+            // Use the uploaded image if available, otherwise fallback to your local logo
+            src={branding.image_url || "/1dbl-logo.jpg"}
+            alt={branding.title}
             fill
             style={{ objectFit: 'contain' }}
             priority
           />
         </div>
+        
+        {/* Dynamic Title from Admin */}
         <h1 className="text-3xl md:text-4xl font-bold text-foreground text-balance">
-          1 Day Basketball League
+          {branding.title}
         </h1>
+
         <div className="min-h-[28px]">
           {gameDate && (
             <p className="text-lg md:text-xl text-primary font-semibold mt-2">
@@ -119,7 +144,7 @@ export default function Home() {
           
           <RegistrationForm onSuccess={handleRegistrationSuccess} />
 
-          {/* NEW: Display Game Rules Section */}
+          {/* Display Game Rules Section */}
           {rules && (
             <div className="mt-8 p-4 bg-muted/50 rounded-lg border border-border">
               <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-2">
