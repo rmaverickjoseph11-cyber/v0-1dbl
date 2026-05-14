@@ -35,6 +35,7 @@ export default function AdminPage() {
   const [editName, setEditName] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeletingAll, setIsDeletingAll] = useState(false) // NEW: State for clearing DB
   const [settings, setSettings] = useState<RegistrationSettings>({
     enabled: true,
     start_date: null,
@@ -48,7 +49,6 @@ export default function AdminPage() {
   })
   const [isSavingGameDate, setIsSavingGameDate] = useState(false)
 
-  // NEW: Rules State
   const [rules, setRules] = useState("")
   const [isSavingRules, setIsSavingRules] = useState(false)
 
@@ -82,10 +82,10 @@ export default function AdminPage() {
       .single()
     
     if (settingsData) {
-      setSettings((prev) => ({
-        ...prev,
+      setSettings({
+        ...{ enabled: true, start_date: null, end_date: null, default_to_reserve: false, max_players: 20 },
         ...(settingsData.value as RegistrationSettings)
-      }))
+      })
     }
 
     const { data: gameDateData } = await supabase
@@ -98,14 +98,13 @@ export default function AdminPage() {
       setGameDate(gameDateData.value as GameDateSettings)
     }
 
-    // NEW: Fetch Rules
     const { data: rulesData } = await supabase
       .from("settings")
       .select("*")
       .eq("key", "game_rules")
-      .maybeSingle() // Use maybeSingle to avoid 406 errors if row doesn't exist
+      .single()
 
-    if (rulesData?.value) {
+    if (rulesData) {
       setRules(rulesData.value.text || "")
     }
 
@@ -152,6 +151,37 @@ export default function AdminPage() {
     }
   }
 
+  // RECOMMENDED: Clear All Players Function
+  const handleClearAllPlayers = async () => {
+    const confirmation = prompt('To clear all registered players, please type "meridianadmin":')
+    
+    if (confirmation !== "meridianadmin") {
+      if (confirmation !== null) alert("Incorrect keyword. Action cancelled.")
+      return
+    }
+
+    if (!confirm("Are you ABSOLUTELY sure? This will permanently delete all player data for the current week.")) return
+
+    setIsDeletingAll(true)
+    const supabase = createClient()
+
+    // Using a delete with a filter that matches all rows
+    const { error } = await supabase
+      .from("players")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000") 
+
+    if (error) {
+      console.error("Error clearing players:", error)
+      alert("Failed to clear database.")
+    } else {
+      setPlayers([])
+      alert("All player data has been cleared.")
+    }
+    setIsDeletingAll(false)
+  }
+
+  // RECOMMENDED: Use UPSERT for all settings to prevent "single row not found" errors
   const handleSaveSettings = async () => {
     setIsSavingSettings(true)
     const supabase = createClient()
@@ -185,11 +215,9 @@ export default function AdminPage() {
     if (error) {
       console.error("Failed to save game date:", error)
     }
-    
     setIsSavingGameDate(false)
   }
 
-  // UPDATED: Save Rules Function with Conflict Resolution
   const handleSaveRules = async () => {
     setIsSavingRules(true)
     const supabase = createClient()
@@ -202,7 +230,7 @@ export default function AdminPage() {
           value: { text: rules },
           updated_at: new Date().toISOString() 
         },
-        { onConflict: 'key' } // This ensures it updates the row if "game_rules" already exists
+        { onConflict: 'key' }
       )
 
     if (error) {
@@ -272,11 +300,11 @@ export default function AdminPage() {
   const activeCount = players.filter(p => p.status !== 'reserve').length;
 
   return (
-    <main className="min-h-screen px-4 py-8 md:py-12 text-foreground">
+    <main className="min-h-screen px-4 py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Admin Dashboard</h1>
             <p className="text-muted-foreground mt-1">Manage players and registration settings</p>
           </div>
           <Button variant="outline" onClick={handleLogout}>
@@ -290,29 +318,40 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-8">
-            {/* Game Date Section */}
             <section className="bg-card rounded-lg border border-border p-6">
-              <h2 className="text-xl font-semibold mb-4">Game Date</h2>
+              <h2 className="text-xl font-semibold text-card-foreground mb-4">
+                Game Date
+              </h2>
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Select Game Date</label>
+                  <label className="block text-sm font-medium text-card-foreground mb-1.5">
+                    Select Game Date
+                  </label>
                   <Input
                     type="date"
                     value={gameDate.date || ""}
                     onChange={(e) => setGameDate({ date: e.target.value || null })}
                     className="w-full max-w-xs"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Displayed on the registration page</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This date will be displayed on the registration page
+                  </p>
                 </div>
-                <Button onClick={handleSaveGameDate} disabled={isSavingGameDate} className="w-fit">
+                <Button 
+                  onClick={handleSaveGameDate} 
+                  disabled={isSavingGameDate}
+                  className="w-fit"
+                >
                   {isSavingGameDate ? <Spinner className="size-5" /> : "Save Game Date"}
                 </Button>
               </div>
             </section>
 
-            {/* Registration Settings Section */}
             <section className="bg-card rounded-lg border border-border p-6">
-              <h2 className="text-xl font-semibold mb-4">Registration Settings</h2>
+              <h2 className="text-xl font-semibold text-card-foreground mb-4">
+                Registration Settings
+              </h2>
+              
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
                   <div className="flex items-center gap-3">
@@ -325,11 +364,15 @@ export default function AdminPage() {
                       />
                       <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
-                    <span className="font-medium">Registration {settings.enabled ? "Enabled" : "Disabled"}</span>
+                    <span className="text-card-foreground font-medium whitespace-nowrap">
+                      Registration {settings.enabled ? "Enabled" : "Disabled"}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-3 flex-1">
-                    <label className="text-sm font-medium whitespace-nowrap">Max Active Players:</label>
+                    <label className="text-sm font-medium text-card-foreground whitespace-nowrap">
+                      Max Active Players:
+                    </label>
                     <Input
                       type="number"
                       value={settings.max_players}
@@ -353,14 +396,20 @@ export default function AdminPage() {
                     <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                   </label>
                   <div className="flex flex-col">
-                    <span className="font-medium">Force New Players to Reserve</span>
-                    <span className="text-xs text-muted-foreground">Manual override or automatic when Max Players ({settings.max_players}) reached.</span>
+                    <span className="text-card-foreground font-medium">
+                      Force New Players to Reserve
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Manual override. Also triggers automatically if Max Players ({settings.max_players}) is reached.
+                    </span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Start Date & Time</label>
+                    <label className="block text-sm font-medium text-card-foreground mb-1.5">
+                      Start Date & Time
+                    </label>
                     <Input
                       type="datetime-local"
                       value={settings.start_date || ""}
@@ -369,7 +418,9 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">End Date & Time</label>
+                    <label className="block text-sm font-medium text-card-foreground mb-1.5">
+                      End Date & Time
+                    </label>
                     <Input
                       type="datetime-local"
                       value={settings.end_date || ""}
@@ -379,15 +430,18 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <Button onClick={handleSaveSettings} disabled={isSavingSettings} className="w-fit">
+                <Button 
+                  onClick={handleSaveSettings} 
+                  disabled={isSavingSettings}
+                  className="w-fit"
+                >
                   {isSavingSettings ? <Spinner className="size-5" /> : "Save Settings"}
                 </Button>
               </div>
             </section>
 
-            {/* Game Rules Section */}
             <section className="bg-card rounded-lg border border-border p-6">
-              <h2 className="text-xl font-semibold mb-4">Game Rules</h2>
+              <h2 className="text-xl font-semibold text-card-foreground mb-4">Game Rules</h2>
               <div className="flex flex-col gap-4">
                 <textarea
                   value={rules}
@@ -395,24 +449,49 @@ export default function AdminPage() {
                   placeholder="Type the game rules here (e.g. 5v5, Winner stays...)"
                   className="w-full min-h-[150px] p-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <Button onClick={handleSaveRules} disabled={isSavingRules} className="w-fit">
+                <Button 
+                  onClick={handleSaveRules} 
+                  disabled={isSavingRules}
+                  className="w-fit"
+                >
                   {isSavingRules ? <Spinner className="size-5" /> : "Save Rules"}
                 </Button>
-                <p className="text-xs text-muted-foreground">Rules are shown on the home page under registration.</p>
+                <p className="text-xs text-muted-foreground">
+                  These rules will be shown on the home page under the registration button.
+                </p>
               </div>
             </section>
 
-            {/* Registered Players Section */}
             <section className="bg-card rounded-lg border border-border p-6">
-              <h2 className="text-xl font-semibold mb-4">Registered Players ({players.length})</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-card-foreground">
+                  Registered Players ({players.length})
+                </h2>
+                {/* NEW: Clear DB Button */}
+                {players.length > 0 && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={handleClearAllPlayers}
+                    disabled={isDeletingAll}
+                  >
+                    {isDeletingAll ? <Spinner className="size-4 mr-2" /> : null}
+                    Clear All Players
+                  </Button>
+                )}
+              </div>
 
               {players.length === 0 ? (
                 <p className="text-muted-foreground py-4">No players registered yet.</p>
               ) : (
                 <ul className="divide-y divide-border">
                   {players.map((player, index) => (
-                    <li key={player.id} className={`py-3 flex items-center gap-4 ${player.status === 'reserve' ? 'opacity-80' : ''}`}>
+                    <li 
+                      key={player.id} 
+                      className={`py-3 flex items-center gap-4 ${player.status === 'reserve' ? 'opacity-80' : ''}`}
+                    >
                       <span className="text-primary font-medium w-8">{index + 1}.</span>
+                      
                       {editingId === player.id ? (
                         <div className="flex-1 flex items-center gap-2">
                           <Input
@@ -422,34 +501,81 @@ export default function AdminPage() {
                             className="flex-1"
                             autoFocus
                           />
-                          <Button size="sm" onClick={() => handleSavePlayer(player.id)} disabled={isSaving}>
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSavePlayer(player.id)}
+                            disabled={isSaving}
+                          >
                             {isSaving ? <Spinner className="size-4" /> : "Save"}
                           </Button>
-                          <Button size="sm" variant="outline" onClick={handleCancelEdit} disabled={isSaving}>Cancel</Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={handleCancelEdit}
+                            disabled={isSaving}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       ) : (
                         <>
                           <div className="flex-1 flex items-center gap-3">
-                            <span className="font-medium">{player.name}</span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold ${player.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            <span className="text-card-foreground font-medium">{player.name}</span>
+                            
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold ${
+                              player.payment_status === 'paid' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
                               {player.payment_status || 'pending'}
                             </span>
+
                             {player.status === "reserve" && (
-                              <span className="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Reserve</span>
+                              <span className="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">
+                                Reserve
+                              </span>
                             )}
                           </div>
+
                           <span className="text-sm text-muted-foreground">
-                            {new Date(player.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            {new Date(player.created_at).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
                           </span>
                           <div className="flex items-center gap-2">
-                            <Button size="sm" variant={player.payment_status === "paid" ? "default" : "outline"} className={player.payment_status === "paid" ? "bg-green-600 hover:bg-green-700" : ""} onClick={() => handleTogglePayment(player)}>
+                            <Button
+                              size="sm"
+                              variant={player.payment_status === "paid" ? "default" : "outline"}
+                              className={player.payment_status === "paid" ? "bg-green-600 hover:bg-green-700" : ""}
+                              onClick={() => handleTogglePayment(player)}
+                            >
                               {player.payment_status === "paid" ? "Mark Pending" : "Mark Paid"}
                             </Button>
-                            <Button size="sm" variant={player.status === "reserve" ? "secondary" : "outline"} onClick={() => handleToggleStatus(player)}>
+
+                            <Button
+                              size="sm"
+                              variant={player.status === "reserve" ? "secondary" : "outline"}
+                              onClick={() => handleToggleStatus(player)}
+                            >
                               {player.status === "reserve" ? "Make Active" : "Make Reserve"}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleEditPlayer(player)}>Edit</Button>
-                            <Button size="sm" variant="outline" onClick={() => handleDeletePlayer(player.id)} className="text-destructive hover:text-destructive">Delete</Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditPlayer(player)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeletePlayer(player.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              Delete
+                            </Button>
                           </div>
                         </>
                       )}
