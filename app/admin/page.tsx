@@ -48,6 +48,10 @@ export default function AdminPage() {
   })
   const [isSavingGameDate, setIsSavingGameDate] = useState(false)
 
+  // NEW: Rules State
+  const [rules, setRules] = useState("")
+  const [isSavingRules, setIsSavingRules] = useState(false)
+
   useEffect(() => {
     const isAdmin = sessionStorage.getItem("isAdmin")
     if (isAdmin !== "true") {
@@ -92,6 +96,17 @@ export default function AdminPage() {
     
     if (gameDateData) {
       setGameDate(gameDateData.value as GameDateSettings)
+    }
+
+    // NEW: Fetch Rules
+    const { data: rulesData } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("key", "game_rules")
+      .single()
+
+    if (rulesData) {
+      setRules(rulesData.value.text || "")
     }
 
     setIsLoading(false)
@@ -191,6 +206,25 @@ export default function AdminPage() {
       }
     }
     setIsSavingGameDate(false)
+  }
+
+  // NEW: Save Rules Function
+  const handleSaveRules = async () => {
+    setIsSavingRules(true)
+    const supabase = createClient()
+    
+    const { error } = await supabase
+      .from("settings")
+      .upsert({ 
+        key: "game_rules", 
+        value: { text: rules },
+        updated_at: new Date().toISOString() 
+      })
+
+    if (error) {
+      console.error("Error saving rules:", error)
+    }
+    setIsSavingRules(false)
   }
   
   const handleToggleStatus = async (player: Player) => {
@@ -389,6 +423,29 @@ export default function AdminPage() {
                 >
                   {isSavingSettings ? <Spinner className="size-5" /> : "Save Settings"}
                 </Button>
+              </div>
+            </section>
+
+            {/* NEW: Game Rules Section */}
+            <section className="bg-card rounded-lg border border-border p-6">
+              <h2 className="text-xl font-semibold text-card-foreground mb-4">Game Rules</h2>
+              <div className="flex flex-col gap-4">
+                <textarea
+                  value={rules}
+                  onChange={(e) => setRules(e.target.value)}
+                  placeholder="Type the game rules here (e.g. 5v5, Winner stays...)"
+                  className="w-full min-h-[150px] p-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <Button 
+                  onClick={handleSaveRules} 
+                  disabled={isSavingRules}
+                  className="w-fit"
+                >
+                  {isSavingRules ? <Spinner className="size-5" /> : "Save Rules"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  These rules will be shown on the home page under the registration button.
+                </p>
               </div>
             </section>
 
