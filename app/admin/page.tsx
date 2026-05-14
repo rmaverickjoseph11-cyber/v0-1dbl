@@ -27,6 +27,12 @@ interface GameDateSettings {
   date: string | null
 }
 
+// NEW: Branding Interface
+interface BrandingSettings {
+  title: string
+  image_url: string | null
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -35,7 +41,7 @@ export default function AdminPage() {
   const [editName, setEditName] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeletingAll, setIsDeletingAll] = useState(false) // NEW: State for clearing DB
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
   const [settings, setSettings] = useState<RegistrationSettings>({
     enabled: true,
     start_date: null,
@@ -51,6 +57,14 @@ export default function AdminPage() {
 
   const [rules, setRules] = useState("")
   const [isSavingRules, setIsSavingRules] = useState(false)
+
+  // NEW: Branding States
+  const [branding, setBranding] = useState<BrandingSettings>({
+    title: "1 Day Basketball League",
+    image_url: null,
+  })
+  const [isSavingBranding, setIsSavingBranding] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
     const isAdmin = sessionStorage.getItem("isAdmin")
@@ -108,7 +122,69 @@ export default function AdminPage() {
       setRules(rulesData.value.text || "")
     }
 
+    // NEW: Fetch Branding Data
+    const { data: brandingData } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("key", "branding_config")
+      .single()
+    
+    if (brandingData) {
+      setBranding(brandingData.value as BrandingSettings)
+    }
+
     setIsLoading(false)
+  }
+
+  // NEW: Image Upload Handler
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    const supabase = createClient()
+    
+    const fileExt = file.name.split('.').pop()
+    const fileName = `banner-${Math.random()}.${fileExt}`
+    const filePath = `uploads/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from("branding")
+      .upload(filePath, file)
+
+    if (uploadError) {
+      alert("Error uploading image")
+      setIsUploading(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from("branding")
+      .getPublicUrl(filePath)
+
+    setBranding(prev => ({ ...prev, image_url: publicUrl }))
+    setIsUploading(false)
+  }
+
+  // NEW: Save Branding Handler
+  const handleSaveBranding = async () => {
+    setIsSavingBranding(true)
+    const supabase = createClient()
+    
+    const { error } = await supabase
+      .from("settings")
+      .upsert({ 
+        key: "branding_config",
+        value: branding,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' })
+
+    if (error) {
+      alert("Failed to save branding")
+    } else {
+      alert("Branding updated successfully!")
+    }
+    setIsSavingBranding(false)
   }
 
   const handleEditPlayer = (player: Player) => {
@@ -151,7 +227,6 @@ export default function AdminPage() {
     }
   }
 
-  // RECOMMENDED: Clear All Players Function
   const handleClearAllPlayers = async () => {
     const confirmation = prompt('To clear all registered players, please type "meridianadmin":')
     
@@ -165,7 +240,6 @@ export default function AdminPage() {
     setIsDeletingAll(true)
     const supabase = createClient()
 
-    // Using a delete with a filter that matches all rows
     const { error } = await supabase
       .from("players")
       .delete()
@@ -181,7 +255,6 @@ export default function AdminPage() {
     setIsDeletingAll(false)
   }
 
-  // RECOMMENDED: Use UPSERT for all settings to prevent "single row not found" errors
   const handleSaveSettings = async () => {
     setIsSavingSettings(true)
     const supabase = createClient()
@@ -318,6 +391,56 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-8">
+            
+            {/* NEW SECTION: Header Branding */}
+            <section className="bg-card rounded-lg border border-border p-6">
+              <h2 className="text-xl font-semibold text-card-foreground mb-4">Header & Branding</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-card-foreground mb-1.5">League Title</label>
+                  <Input 
+                    value={branding.title}
+                    onChange={(e) => setBranding({ ...branding, title: e.target.value })}
+                    placeholder="e.g. 1 Day Basketball League"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-card-foreground mb-1.5">Banner Image</label>
+                  <div className="flex flex-col gap-3">
+                    {branding.image_url && (
+                      <div className="relative w-full h-32 rounded-md overflow-hidden border border-border">
+                        <img 
+                          src={branding.image_url} 
+                          alt="Banner Preview" 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        className="max-w-xs"
+                      />
+                      {isUploading && <Spinner className="size-5" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Upload a photo to show on top of the home page</p>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleSaveBranding} 
+                  disabled={isSavingBranding || isUploading}
+                  className="w-fit"
+                >
+                  {isSavingBranding ? <Spinner className="size-5 mr-2" /> : null}
+                  Update Branding
+                </Button>
+              </div>
+            </section>
+
             <section className="bg-card rounded-lg border border-border p-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-4">
                 Game Date
@@ -467,7 +590,6 @@ export default function AdminPage() {
                 <h2 className="text-xl font-semibold text-card-foreground">
                   Registered Players ({players.length})
                 </h2>
-                {/* NEW: Clear DB Button */}
                 {players.length > 0 && (
                   <Button 
                     variant="destructive" 
