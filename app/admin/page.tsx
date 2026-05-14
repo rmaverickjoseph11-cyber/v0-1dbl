@@ -12,7 +12,7 @@ interface Player {
   name: string
   created_at: string
   status?: "active" | "reserve"
-  payment_status?: "paid" | "pending" // Added payment status to interface
+  payment_status?: "paid" | "pending"
 }
 
 interface RegistrationSettings {
@@ -208,21 +208,27 @@ export default function AdminPage() {
     setIsSavingGameDate(false)
   }
 
-  // NEW: Save Rules Function
+  // UPDATED: Save Rules Function with Conflict Resolution
   const handleSaveRules = async () => {
     setIsSavingRules(true)
     const supabase = createClient()
     
     const { error } = await supabase
       .from("settings")
-      .upsert({ 
-        key: "game_rules", 
-        value: { text: rules },
-        updated_at: new Date().toISOString() 
-      })
+      .upsert(
+        { 
+          key: "game_rules", 
+          value: { text: rules },
+          updated_at: new Date().toISOString() 
+        },
+        { onConflict: 'key' } // This ensures it updates the row if "game_rules" already exists
+      )
 
     if (error) {
       console.error("Error saving rules:", error)
+      alert(`Error: ${error.message}`)
+    } else {
+      alert("Rules saved successfully!")
     }
     setIsSavingRules(false)
   }
@@ -248,7 +254,6 @@ export default function AdminPage() {
     }
   }
 
-  // NEW: Payment Toggle Function
   const handleTogglePayment = async (player: Player) => {
     const newPaymentStatus = player.payment_status === "paid" ? "pending" : "paid"
     const supabase = createClient()
@@ -495,7 +500,6 @@ export default function AdminPage() {
                           <div className="flex-1 flex items-center gap-3">
                             <span className="text-card-foreground font-medium">{player.name}</span>
                             
-                            {/* PAYMENT STATUS BADGE */}
                             <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold ${
                               player.payment_status === 'paid' 
                                 ? 'bg-green-100 text-green-700' 
@@ -519,7 +523,6 @@ export default function AdminPage() {
                             })}
                           </span>
                           <div className="flex items-center gap-2">
-                            {/* PAYMENT TOGGLE BUTTON */}
                             <Button
                               size="sm"
                               variant={player.payment_status === "paid" ? "default" : "outline"}
