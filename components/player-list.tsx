@@ -3,19 +3,20 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Spinner } from "@/components/ui/spinner"
-import { Trash2 } from "lucide-react" // Ensure lucide-react is installed
+import { Trash2 } from "lucide-react"
 
 interface Player {
   id: string
   name: string
   created_at: string
   status?: "active" | "reserve"
-  code: string // Added to interface for verification
+  payment_status?: "paid" | "pending" // Added payment status
+  code: string 
 }
 
 interface PlayerListProps {
   refreshKey: number
-  onRefreshRequest?: () => void // Added to trigger parent state update if needed
+  onRefreshRequest?: () => void 
 }
 
 export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
@@ -45,7 +46,7 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
   const handleDelete = async (player: Player) => {
     const inputCode = window.prompt(`Enter 4-digit code to remove "${player.name}":`)
     
-    if (inputCode === null) return // User cancelled
+    if (inputCode === null) return 
 
     if (inputCode !== player.code) {
       alert("Incorrect code. Action unauthorized.")
@@ -64,7 +65,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
     if (error) {
       alert("Failed to delete. Please try again.")
     } else {
-      // Refresh the list immediately after successful deletion
       fetchPlayers()
       if (onRefreshRequest) onRefreshRequest()
     }
@@ -109,6 +109,15 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-primary">{index + 1}.</span>
                   <span className="text-foreground">{player.name}</span>
+                  
+                  {/* Payment Status Badge */}
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter font-bold border ${
+                    player.payment_status === 'paid' 
+                      ? 'bg-green-100 text-green-700 border-green-200' 
+                      : 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                  }`}>
+                    {player.payment_status || 'pending'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-[10px] md:text-sm text-muted-foreground">
@@ -142,6 +151,15 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-muted-foreground">R{index + 1}.</span>
                       <span className="text-foreground italic">{player.name}</span>
+                      
+                      {/* Payment Status Badge for Reserve */}
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter font-bold border ${
+                        player.payment_status === 'paid' 
+                          ? 'bg-green-100 text-green-700 border-green-200' 
+                          : 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                      }`}>
+                        {player.payment_status || 'pending'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-[10px] md:text-sm text-muted-foreground">
