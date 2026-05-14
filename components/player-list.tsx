@@ -3,46 +3,76 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Spinner } from "@/components/ui/spinner"
+import { Trash2 } from "lucide-react" // Ensure lucide-react is installed
 
 interface Player {
   id: string
   name: string
   created_at: string
   status?: "active" | "reserve"
+  code: string // Added to interface for verification
 }
 
 interface PlayerListProps {
   refreshKey: number
+  onRefreshRequest?: () => void // Added to trigger parent state update if needed
 }
 
-export function PlayerList({ refreshKey }: PlayerListProps) {
+export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
   const [players, setPlayers] = useState<Player[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      setIsLoading(true)
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from("players")
-        .select("*")
-        .order("created_at", { ascending: true })
+  const fetchPlayers = async () => {
+    setIsLoading(true)
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from("players")
+      .select("*")
+      .order("created_at", { ascending: true })
 
-      if (error) {
-        console.error("Error fetching players:", error)
-      } else {
-        setPlayers(data || [])
-      }
-      setIsLoading(false)
+    if (error) {
+      console.error("Error fetching players:", error)
+    } else {
+      setPlayers(data || [])
     }
+    setIsLoading(false)
+  }
 
+  useEffect(() => {
     fetchPlayers()
   }, [refreshKey])
+
+  const handleDelete = async (player: Player) => {
+    const inputCode = window.prompt(`Enter 4-digit code to remove "${player.name}":`)
+    
+    if (inputCode === null) return // User cancelled
+
+    if (inputCode !== player.code) {
+      alert("Incorrect code. Action unauthorized.")
+      return
+    }
+
+    const confirmDelete = window.confirm("Are you sure you want to delete your registration?")
+    if (!confirmDelete) return
+
+    const supabase = createClient()
+    const { error } = await supabase
+      .from("players")
+      .delete()
+      .eq("id", player.id)
+
+    if (error) {
+      alert("Failed to delete. Please try again.")
+    } else {
+      // Refresh the list immediately after successful deletion
+      fetchPlayers()
+      if (onRefreshRequest) onRefreshRequest()
+    }
+  }
 
   const activePlayers = players.filter((p) => p.status !== "reserve")
   const reservePlayers = players.filter((p) => p.status === "reserve")
 
-  // Helper function to format the date to keep the JSX clean
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -74,15 +104,24 @@ export function PlayerList({ refreshKey }: PlayerListProps) {
             {activePlayers.map((player, index) => (
               <li 
                 key={player.id} 
-                className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
+                className="flex items-center justify-between py-2 border-b border-border last:border-b-0 group"
               >
-                <span className="text-foreground">
-                  <span className="font-medium text-primary mr-2">{index + 1}.</span>
-                  {player.name}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {formatDate(player.created_at)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-primary">{index + 1}.</span>
+                  <span className="text-foreground">{player.name}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] md:text-sm text-muted-foreground">
+                    {formatDate(player.created_at)}
+                  </span>
+                  <button
+                    onClick={() => handleDelete(player)}
+                    className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                    title="Delete registration"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -98,16 +137,24 @@ export function PlayerList({ refreshKey }: PlayerListProps) {
                 {reservePlayers.map((player, index) => (
                   <li 
                     key={player.id} 
-                    className="flex items-center justify-between py-2 border-b border-border last:border-b-0 opacity-70"
+                    className="flex items-center justify-between py-2 border-b border-border last:border-b-0 group opacity-80"
                   >
-                    <span className="text-foreground italic">
-                      <span className="font-medium text-muted-foreground mr-2">R{index + 1}.</span>
-                      {player.name}
-                    </span>
-                    {/* Replaced "Waiting" badge with the registration timestamp */}
-                    <span className="text-sm text-muted-foreground">
-                      {formatDate(player.created_at)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-muted-foreground">R{index + 1}.</span>
+                      <span className="text-foreground italic">{player.name}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[10px] md:text-sm text-muted-foreground">
+                        {formatDate(player.created_at)}
+                      </span>
+                      <button
+                        onClick={() => handleDelete(player)}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                        title="Delete registration"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
