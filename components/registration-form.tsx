@@ -14,17 +14,18 @@ interface RegistrationSettings {
   enabled: boolean
   start_date: string | null
   end_date: string | null
-  default_to_reserve?: boolean // Added this property
+  default_to_reserve?: boolean
 }
 
 export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   const [name, setName] = useState("")
+  const [code, setCode] = useState("") // New state for the 4-digit code
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingSettings, setIsCheckingSettings] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(true)
   const [registrationMessage, setRegistrationMessage] = useState<string | null>(null)
-  const [isReserveOnly, setIsReserveOnly] = useState(false) // Added state to track reserve status
+  const [isReserveOnly, setIsReserveOnly] = useState(false)
 
   useEffect(() => {
     checkRegistrationWindow()
@@ -44,12 +45,10 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       const settings = data.value as RegistrationSettings
       const now = new Date()
       
-      // Check if "Force to Reserve" is enabled
       if (settings.default_to_reserve) {
         setIsReserveOnly(true)
       }
 
-      // Check if registration is enabled
       if (!settings.enabled) {
         setIsRegistrationOpen(false)
         setRegistrationMessage("Registration is currently closed.")
@@ -57,7 +56,6 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         return
       }
 
-      // Check start date
       if (settings.start_date) {
         const startDate = new Date(settings.start_date)
         if (now < startDate) {
@@ -76,7 +74,6 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         }
       }
 
-      // Check end date
       if (settings.end_date) {
         const endDate = new Date(settings.end_date)
         if (now > endDate) {
@@ -94,11 +91,24 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
     setIsCheckingSettings(false)
   }
 
+  // Helper to ensure code is only 4 numbers
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "") // Remove non-numeric characters
+    if (val.length <= 4) {
+      setCode(val)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Validation
     if (!name.trim()) {
       setError("Please enter your name")
+      return
+    }
+    if (code.length !== 4) {
+      setError("Please enter a 4-digit code")
       return
     }
 
@@ -107,15 +117,14 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
     try {
       const supabase = createClient()
-      
-      // Determine initial status based on the setting we fetched earlier
       const initialStatus = isReserveOnly ? "reserve" : "active"
 
       const { error: insertError } = await supabase
         .from("players")
         .insert({ 
           name: name.trim(),
-          status: initialStatus // Insert with the correct status
+          code: code, // Saving the 4-digit number to the 'code' column
+          status: initialStatus 
         })
 
       if (insertError) {
@@ -123,6 +132,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       }
 
       setName("")
+      setCode("") // Reset code on success
       onSuccess()
     } catch (err) {
       setError("Failed to register. Please try again.")
@@ -150,7 +160,6 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-md">
-      {/* Visual heads-up if registration is forced to reserve */}
       {isReserveOnly && (
         <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-2 text-center">
            <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
@@ -159,25 +168,47 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         </div>
       )}
       
-      <div className="flex gap-3">
-        <Input
-          type="text"
-          placeholder="Enter your name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={isLoading}
-          className="flex-1 h-12 text-base"
-        />
-        <Button 
-          type="submit" 
-          disabled={isLoading}
-          className="h-12 px-6 font-semibold"
-        >
-          {isLoading ? <Spinner className="size-5" /> : "Register"}
-        </Button>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium px-1">Full Name</label>
+          <Input
+            type="text"
+            placeholder="Enter your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isLoading}
+            className="h-12 text-base"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium px-1">4-Digit Code</label>
+          <div className="flex gap-3">
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 1234"
+              value={code}
+              onChange={handleCodeChange}
+              disabled={isLoading}
+              className="flex-1 h-12 text-base tracking-[0.5em] font-mono text-center"
+              maxLength={4}
+            />
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="h-12 px-8 font-semibold"
+            >
+              {isLoading ? <Spinner className="size-5" /> : "Register"}
+            </Button>
+          </div>
+        </div>
       </div>
+
       {error && (
-        <p className="text-destructive text-sm">{error}</p>
+        <p className="text-destructive text-sm font-medium bg-destructive/10 p-2 rounded border border-destructive/20">
+          {error}
+        </p>
       )}
     </form>
   )
