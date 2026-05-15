@@ -19,6 +19,9 @@ export default function Home() {
   const [gameDate, setGameDate] = useState<string | null>(null)
   const [rules, setRules] = useState<string | null>(null)
   
+  // NEW: State to prevent the "flash" of old content
+  const [isLoading, setIsLoading] = useState(true)
+  
   // NEW: Branding State
   const [branding, setBranding] = useState<BrandingSettings>({
     title: "1 Day Basketball League",
@@ -29,37 +32,44 @@ export default function Home() {
     const fetchData = async () => {
       const supabase = createClient()
       
-      // Fetch Game Date
-      const { data: dateData } = await supabase
-        .from("settings")
-        .select("value")
-        .eq("key", "game_date")
-        .single()
-      
-      if (dateData?.value?.date) {
-        setGameDate(dateData.value.date)
-      }
+      try {
+        // Fetch Game Date
+        const { data: dateData } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "game_date")
+          .single()
+        
+        if (dateData?.value?.date) {
+          setGameDate(dateData.value.date)
+        }
 
-      // Fetch Game Rules
-      const { data: rulesData } = await supabase
-        .from("settings")
-        .select("value")
-        .eq("key", "game_rules")
-        .single()
+        // Fetch Game Rules
+        const { data: rulesData } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "game_rules")
+          .single()
 
-      if (rulesData?.value?.text) {
-        setRules(rulesData.value.text)
-      }
+        if (rulesData?.value?.text) {
+          setRules(rulesData.value.text)
+        }
 
-      // NEW: Fetch Branding Configuration (Title & Banner)
-      const { data: brandingData } = await supabase
-        .from("settings")
-        .select("value")
-        .eq("key", "branding_config")
-        .single()
-      
-      if (brandingData?.value) {
-        setBranding(brandingData.value as BrandingSettings)
+        // NEW: Fetch Branding Configuration (Title & Banner)
+        const { data: brandingData } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "branding_config")
+          .single()
+        
+        if (brandingData?.value) {
+          setBranding(brandingData.value as BrandingSettings)
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error)
+      } finally {
+        // Data fetching is done, stop showing the loading screen
+        setIsLoading(false)
       }
     }
     fetchData()
@@ -67,6 +77,18 @@ export default function Home() {
 
   const handleRegistrationSuccess = () => {
     setRefreshKey((prev) => prev + 1)
+  }
+
+  // Recommended: Show a simple loading state so the user doesn't see the "swap"
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-12 w-48 bg-muted rounded mb-4"></div>
+          <div className="h-4 w-32 bg-muted rounded"></div>
+        </div>
+      </div>
+    )
   }
 
   return (
