@@ -21,13 +21,13 @@ interface RegistrationSettings {
   end_date: string | null
   default_to_reserve: boolean
   max_players: number 
+  show_registration_date: boolean // Added this property
 }
 
 interface GameDateSettings {
   date: string | null
 }
 
-// NEW: Branding Interface
 interface BrandingSettings {
   title: string
   image_url: string | null
@@ -47,7 +47,8 @@ export default function AdminPage() {
     start_date: null,
     end_date: null,
     default_to_reserve: false,
-    max_players: 20, 
+    max_players: 20,
+    show_registration_date: true, // Added default value
   })
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [gameDate, setGameDate] = useState<GameDateSettings>({
@@ -58,7 +59,6 @@ export default function AdminPage() {
   const [rules, setRules] = useState("")
   const [isSavingRules, setIsSavingRules] = useState(false)
 
-  // NEW: Branding States
   const [branding, setBranding] = useState<BrandingSettings>({
     title: "1 Day Basketball League",
     image_url: null,
@@ -97,7 +97,7 @@ export default function AdminPage() {
     
     if (settingsData) {
       setSettings({
-        ...{ enabled: true, start_date: null, end_date: null, default_to_reserve: false, max_players: 20 },
+        ...{ enabled: true, start_date: null, end_date: null, default_to_reserve: false, max_players: 20, show_registration_date: true },
         ...(settingsData.value as RegistrationSettings)
       })
     }
@@ -122,7 +122,6 @@ export default function AdminPage() {
       setRules(rulesData.value.text || "")
     }
 
-    // NEW: Fetch Branding Data
     const { data: brandingData } = await supabase
       .from("settings")
       .select("*")
@@ -136,7 +135,6 @@ export default function AdminPage() {
     setIsLoading(false)
   }
 
-  // NEW: Image Upload Handler
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -166,7 +164,6 @@ export default function AdminPage() {
     setIsUploading(false)
   }
 
-  // NEW: Save Branding Handler
   const handleSaveBranding = async () => {
     setIsSavingBranding(true)
     const supabase = createClient()
@@ -269,6 +266,8 @@ export default function AdminPage() {
 
     if (error) {
       console.error("Failed to save settings:", error)
+    } else {
+      alert("Settings saved successfully!")
     }
     setIsSavingSettings(false)
   }
@@ -392,7 +391,6 @@ export default function AdminPage() {
         ) : (
           <div className="flex flex-col gap-8">
             
-            {/* NEW SECTION: Header Branding */}
             <section className="bg-card rounded-lg border border-border p-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-4">Header & Branding</h2>
               <div className="space-y-4">
@@ -507,6 +505,28 @@ export default function AdminPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* --- START OF NEW DATE TOGGLE --- */}
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border border-border/50">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.show_registration_date}
+                      onChange={(e) => setSettings({ ...settings, show_registration_date: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                  </label>
+                  <div className="flex flex-col">
+                    <span className="text-card-foreground font-medium">
+                      Show Registration Date to Public
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Enable to show the join date and time next to player names on the home page list.
+                    </span>
+                  </div>
+                </div>
+                {/* --- END OF NEW DATE TOGGLE --- */}
 
                 <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border border-border/50">
                   <label className="relative inline-flex items-center cursor-pointer">

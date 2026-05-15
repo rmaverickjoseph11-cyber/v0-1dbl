@@ -10,8 +10,13 @@ interface Player {
   name: string
   created_at: string
   status?: "active" | "reserve"
-  payment_status?: "paid" | "pending" // Added payment status
+  payment_status?: "paid" | "pending"
   code: string 
+}
+
+// Added interface for settings
+interface RegistrationSettings {
+  show_registration_date: boolean
 }
 
 interface PlayerListProps {
@@ -22,25 +27,43 @@ interface PlayerListProps {
 export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
   const [players, setPlayers] = useState<Player[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  // New state for settings
+  const [showDate, setShowDate] = useState(true)
 
-  const fetchPlayers = async () => {
+  const fetchData = async () => {
     setIsLoading(true)
     const supabase = createClient()
-    const { data, error } = await supabase
+    
+    // Fetch Players
+    const { data: playerData, error: playerError } = await supabase
       .from("players")
       .select("*")
       .order("created_at", { ascending: true })
 
-    if (error) {
-      console.error("Error fetching players:", error)
+    if (playerError) {
+      console.error("Error fetching players:", playerError)
     } else {
       setPlayers(data || [])
     }
+
+    // Fetch Settings to check visibility toggle
+    const { data: settingsData } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "registration_window")
+      .single()
+
+    if (settingsData?.value) {
+      const config = settingsData.value as RegistrationSettings
+      // Default to true if the property doesn't exist yet
+      setShowDate(config.show_registration_date !== false)
+    }
+
     setIsLoading(false)
   }
 
   useEffect(() => {
-    fetchPlayers()
+    fetchData()
   }, [refreshKey])
 
   const handleDelete = async (player: Player) => {
@@ -65,7 +88,7 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
     if (error) {
       alert("Failed to delete. Please try again.")
     } else {
-      fetchPlayers()
+      fetchData() // Refresh list after delete
       if (onRefreshRequest) onRefreshRequest()
     }
   }
@@ -110,7 +133,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                   <span className="font-medium text-primary">{index + 1}.</span>
                   <span className="text-foreground">{player.name}</span>
                   
-                  {/* Payment Status Badge */}
                   <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter font-bold border ${
                     player.payment_status === 'paid' 
                       ? 'bg-green-100 text-green-700 border-green-200' 
@@ -120,9 +142,12 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-[10px] md:text-sm text-muted-foreground">
-                    {formatDate(player.created_at)}
-                  </span>
+                  {/* Conditionally render the date */}
+                  {showDate && (
+                    <span className="text-[10px] md:text-sm text-muted-foreground">
+                      {formatDate(player.created_at)}
+                    </span>
+                  )}
                   <button
                     onClick={() => handleDelete(player)}
                     className="text-muted-foreground hover:text-destructive transition-colors p-1"
@@ -152,7 +177,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                       <span className="font-medium text-muted-foreground">R{index + 1}.</span>
                       <span className="text-foreground italic">{player.name}</span>
                       
-                      {/* Payment Status Badge for Reserve */}
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter font-bold border ${
                         player.payment_status === 'paid' 
                           ? 'bg-green-100 text-green-700 border-green-200' 
@@ -162,9 +186,12 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-[10px] md:text-sm text-muted-foreground">
-                        {formatDate(player.created_at)}
-                      </span>
+                      {/* Conditionally render the date for reserves too */}
+                      {showDate && (
+                        <span className="text-[10px] md:text-sm text-muted-foreground">
+                          {formatDate(player.created_at)}
+                        </span>
+                      )}
                       <button
                         onClick={() => handleDelete(player)}
                         className="text-muted-foreground hover:text-destructive transition-colors p-1"
