@@ -158,7 +158,7 @@ export default function Home() {
             Player Registration
           </h2>
           <p className="text-muted-foreground mb-2">
-            Enter your name below to join the competition.
+            Enter your name below to join.
           </p>
           <p className="text-sm text-amber-600 dark:text-amber-500 font-medium mb-6 italic">
             Note: Code will be used if you want to delete your name.
