@@ -14,7 +14,6 @@ interface Player {
   code: string 
 }
 
-// Added interface for settings
 interface RegistrationSettings {
   show_registration_date: boolean
 }
@@ -27,14 +26,13 @@ interface PlayerListProps {
 export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
   const [players, setPlayers] = useState<Player[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  // New state for settings
   const [showDate, setShowDate] = useState(true)
 
   const fetchData = async () => {
     setIsLoading(true)
     const supabase = createClient()
     
-    // Fetch Players
+    // 1. Fetch Players
     const { data: playerData, error: playerError } = await supabase
       .from("players")
       .select("*")
@@ -43,20 +41,24 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
     if (playerError) {
       console.error("Error fetching players:", playerError)
     } else {
-      setPlayers(data || [])
+      // FIXED: Changed 'data' to 'playerData'
+      setPlayers(playerData || [])
     }
 
-    // Fetch Settings to check visibility toggle
-    const { data: settingsData } = await supabase
-      .from("settings")
-      .select("value")
-      .eq("key", "registration_window")
-      .single()
+    // 2. Fetch Settings
+    try {
+      const { data: settingsData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "registration_window")
+        .single()
 
-    if (settingsData?.value) {
-      const config = settingsData.value as RegistrationSettings
-      // Default to true if the property doesn't exist yet
-      setShowDate(config.show_registration_date !== false)
+      if (settingsData?.value) {
+        const config = settingsData.value as RegistrationSettings
+        setShowDate(config.show_registration_date !== false)
+      }
+    } catch (err) {
+      console.error("Settings fetch error:", err)
     }
 
     setIsLoading(false)
@@ -68,7 +70,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
 
   const handleDelete = async (player: Player) => {
     const inputCode = window.prompt(`Enter 4-digit code to remove "${player.name}":`)
-    
     if (inputCode === null) return 
 
     if (inputCode !== player.code) {
@@ -76,8 +77,7 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
       return
     }
 
-    const confirmDelete = window.confirm("Are you sure you want to delete your registration?")
-    if (!confirmDelete) return
+    if (!window.confirm("Are you sure you want to delete your registration?")) return
 
     const supabase = createClient()
     const { error } = await supabase
@@ -88,7 +88,7 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
     if (error) {
       alert("Failed to delete. Please try again.")
     } else {
-      fetchData() // Refresh list after delete
+      fetchData()
       if (onRefreshRequest) onRefreshRequest()
     }
   }
@@ -122,7 +122,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
         </p>
       ) : (
         <div className="space-y-8">
-          {/* Main Roster Section */}
           <ul className="space-y-2">
             {activePlayers.map((player, index) => (
               <li 
@@ -132,7 +131,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-primary">{index + 1}.</span>
                   <span className="text-foreground">{player.name}</span>
-                  
                   <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter font-bold border ${
                     player.payment_status === 'paid' 
                       ? 'bg-green-100 text-green-700 border-green-200' 
@@ -142,7 +140,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
-                  {/* Conditionally render the date */}
                   {showDate && (
                     <span className="text-[10px] md:text-sm text-muted-foreground">
                       {formatDate(player.created_at)}
@@ -151,7 +148,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                   <button
                     onClick={() => handleDelete(player)}
                     className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                    title="Delete registration"
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -160,7 +156,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
             ))}
           </ul>
 
-          {/* Reserve List Section */}
           {reservePlayers.length > 0 && (
             <div className="pt-4 border-t-2 border-dashed border-border">
               <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
@@ -176,7 +171,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-muted-foreground">R{index + 1}.</span>
                       <span className="text-foreground italic">{player.name}</span>
-                      
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter font-bold border ${
                         player.payment_status === 'paid' 
                           ? 'bg-green-100 text-green-700 border-green-200' 
@@ -186,7 +180,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      {/* Conditionally render the date for reserves too */}
                       {showDate && (
                         <span className="text-[10px] md:text-sm text-muted-foreground">
                           {formatDate(player.created_at)}
@@ -195,7 +188,6 @@ export function PlayerList({ refreshKey, onRefreshRequest }: PlayerListProps) {
                       <button
                         onClick={() => handleDelete(player)}
                         className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                        title="Delete registration"
                       >
                         <Trash2 className="size-4" />
                       </button>
