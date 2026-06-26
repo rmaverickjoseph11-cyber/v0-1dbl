@@ -271,24 +271,63 @@ export default function AdminPage() {
     }
     setIsSavingSettings(false)
   }
+const getAutomaticGameDate = (): string => {
+  const now = new Date()
+  const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
 
-  const handleSaveGameDate = async () => {
-    setIsSavingGameDate(true)
-    const supabase = createClient()
-    
-    const { error } = await supabase
-      .from("settings")
-      .upsert({ 
-        key: "game_date",
-        value: gameDate,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'key' })
+  // Target days: 2 (Tuesday), 4 (Thursday), 6 (Saturday)
+  const gameDays = [2, 4, 6]
 
-    if (error) {
-      console.error("Failed to save game date:", error)
-    }
-    setIsSavingGameDate(false)
+  // If today is Tuesday, Thursday, or Saturday, use today's date
+  if (gameDays.includes(dayOfWeek)) {
+    return now.toISOString().split("T")[0]
   }
+
+  // Otherwise, find how many days to add to get to the next game day
+  let daysUntilNextGame = 1
+  while (!gameDays.includes((dayOfWeek + daysUntilNextGame) % 7)) {
+    daysUntilNextGame++
+  }
+
+  const nextGameDate = new Date(now)
+  nextGameDate.setDate(now.getDate() + daysUntilNextGame)
+  
+  return nextGameDate.toISOString().split("T")[0]
+}
+  const handleSaveGameDate = async () => {
+  setIsSavingGameDate(true)
+  const supabase = createClient()
+  
+  // 1. Check if the selection is blank
+  let dateToSave = gameDate.date
+  if (!dateToSave) {
+    dateToSave = getAutomaticGameDate()
+    
+    // Optimistically update the UI input field so the user sees what was selected
+    setGameDate({ date: dateToSave })
+  }
+
+  // 2. Build the payload with the automatically calculated date if needed
+  const payload = {
+    date: dateToSave
+  }
+  
+  const { error } = await supabase
+    .from("settings")
+    .upsert({ 
+      key: "game_date",
+      value: payload, // Saves the structured object to your JSONB value column
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' })
+
+  if (error) {
+    console.error("Failed to save game date:", error)
+    alert(`Error saving date: ${error.message}`)
+  } else {
+    alert(`Game date saved successfully as ${dateToSave}!`)
+  }
+  setIsSavingGameDate(false)
+}
 
   const handleSaveRules = async () => {
     setIsSavingRules(true)
