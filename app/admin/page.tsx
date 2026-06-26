@@ -88,6 +88,86 @@ const [computedFallback, setComputedFallback] = useState<string>("")
     setIsLoading(true)
     const supabase = createClient()
     
+    // 1. Fetch the game date FIRST to check for expiration
+    const { data: gameDateData } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("key", "game_date")
+      .single()
+    
+    let currentGameDate: string | null = null
+    if (gameDateData) {
+      setGameDate(gameDateData.value as GameDateSettings)
+      currentGameDate = (gameDateData.value as GameDateSettings).date
+    }
+
+    // 2. EXPIRED CHECK: If game date has passed, wipe players and reset date
+    if (currentGameDate) {
+      const todayStr = new Date().toISOString().split("T")[0] // e.g., "2026-06-26"
+      
+      if (currentGameDate < todayStr) {
+        console.log("Game date has passed. Automatically clearing players...")
+        
+        // Delete all players from database
+        await supabase
+          .from("players")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000")
+          
+        // Reset game_date in database back to null so fallback schedules kick in
+        await supabase
+          .from("settings")
+          .upsert({ 
+            key: "game_date",
+            value: { date: null },
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
+          
+        // Reset all corresponding local UI states
+        setPlayers([])
+        setGameDate({ date: null })
+        setComputedFallback(getAutomaticGameDate())
+        
+        // Fetch the remaining settings so the page loads correctly, then exit early
+        const { data: settingsData } = await supabase
+          .from("settings")
+          .select("*")
+          .eq("key", "registration_window")
+          .single()
+        
+        if (settingsData) {
+          setSettings({
+            ...{ enabled: true, start_date: null, end_date: null, default_to_reserve: false, max_players: 20, show_registration_date: true },
+            ...(settingsData.value as RegistrationSettings)
+          })
+        }
+
+        const { data: rulesData } = await supabase
+          .from("settings")
+          .select("*")
+          .eq("key", "game_rules")
+          .single()
+
+        if (rulesData) {
+          setRules(rulesData.value.text || "")
+        }
+
+        const { data: brandingData } = await supabase
+          .from("settings")
+          .select("*")
+          .eq("key", "branding_config")
+          .single()
+        
+        if (brandingData) {
+          setBranding(brandingData.value as BrandingSettings)
+        }
+
+        setIsLoading(false)
+        return // Stop right here, we are done
+      }
+    }
+
+    // 3. NORMAL PATH: If date is NOT expired, load players normally
     const { data: playersData } = await supabase
       .from("players")
       .select("*")
@@ -97,6 +177,7 @@ const [computedFallback, setComputedFallback] = useState<string>("")
       setPlayers(playersData)
     }
 
+    // Load registration settings
     const { data: settingsData } = await supabase
       .from("settings")
       .select("*")
@@ -109,6 +190,31 @@ const [computedFallback, setComputedFallback] = useState<string>("")
         ...(settingsData.value as RegistrationSettings)
       })
     }
+
+    // Load game rules
+    const { data: rulesData } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("key", "game_rules")
+      .single()
+
+    if (rulesData) {
+      setRules(rulesData.value.text || "")
+    }
+
+    // Load branding configurations
+    const { data: brandingData } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("key", "branding_config")
+      .single()
+    
+    if (brandingData) {
+      setBranding(brandingData.value as BrandingSettings)
+    }
+
+    setIsLoading(false)
+  }
 
     const { data: gameDateData } = await supabase
       .from("settings")
