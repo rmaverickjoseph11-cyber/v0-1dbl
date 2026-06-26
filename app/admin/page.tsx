@@ -21,7 +21,7 @@ interface RegistrationSettings {
   end_date: string | null
   default_to_reserve: boolean
   max_players: number 
-  show_registration_date: boolean // Added this property
+  show_registration_date: boolean
 }
 
 interface GameDateSettings {
@@ -48,7 +48,7 @@ export default function AdminPage() {
     end_date: null,
     default_to_reserve: false,
     max_players: 20,
-    show_registration_date: true, // Added default value
+    show_registration_date: true,
   })
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [gameDate, setGameDate] = useState<GameDateSettings>({
@@ -56,7 +56,7 @@ export default function AdminPage() {
   })
   const [isSavingGameDate, setIsSavingGameDate] = useState(false)
   
-const [computedFallback, setComputedFallback] = useState<string>("")
+  const [computedFallback, setComputedFallback] = useState<string>("")
 
   useEffect(() => {
     if (isAuthorized) {
@@ -216,39 +216,6 @@ const [computedFallback, setComputedFallback] = useState<string>("")
     setIsLoading(false)
   }
 
-    const { data: gameDateData } = await supabase
-      .from("settings")
-      .select("*")
-      .eq("key", "game_date")
-      .single()
-    
-    if (gameDateData) {
-      setGameDate(gameDateData.value as GameDateSettings)
-    }
-
-    const { data: rulesData } = await supabase
-      .from("settings")
-      .select("*")
-      .eq("key", "game_rules")
-      .single()
-
-    if (rulesData) {
-      setRules(rulesData.value.text || "")
-    }
-
-    const { data: brandingData } = await supabase
-      .from("settings")
-      .select("*")
-      .eq("key", "branding_config")
-      .single()
-    
-    if (brandingData) {
-      setBranding(brandingData.value as BrandingSettings)
-    }
-
-    setIsLoading(false)
-  }
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -385,63 +352,58 @@ const [computedFallback, setComputedFallback] = useState<string>("")
     }
     setIsSavingSettings(false)
   }
-const getAutomaticGameDate = (): string => {
-  const now = new Date()
-  const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
 
-  // Target days: 2 (Tuesday), 4 (Thursday), 6 (Saturday)
-  const gameDays = [2, 4, 6]
+  const getAutomaticGameDate = (): string => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
 
-  // If today is Tuesday, Thursday, or Saturday, use today's date
-  if (gameDays.includes(dayOfWeek)) {
-    return now.toISOString().split("T")[0]
-  }
+    const gameDays = [2, 4, 6]
 
-  // Otherwise, find how many days to add to get to the next game day
-  let daysUntilNextGame = 1
-  while (!gameDays.includes((dayOfWeek + daysUntilNextGame) % 7)) {
-    daysUntilNextGame++
-  }
+    if (gameDays.includes(dayOfWeek)) {
+      return now.toISOString().split("T")[0]
+    }
 
-  const nextGameDate = new Date(now)
-  nextGameDate.setDate(now.getDate() + daysUntilNextGame)
-  
-  return nextGameDate.toISOString().split("T")[0]
-}
-  const handleSaveGameDate = async () => {
-  setIsSavingGameDate(true)
-  const supabase = createClient()
-  
-  // 1. Check if the selection is blank
-  let dateToSave = gameDate.date
-  if (!dateToSave) {
-    dateToSave = getAutomaticGameDate()
+    let daysUntilNextGame = 1
+    while (!gameDays.includes((dayOfWeek + daysUntilNextGame) % 7)) {
+      daysUntilNextGame++
+    }
+
+    const nextGameDate = new Date(now)
+    nextGameDate.setDate(now.getDate() + daysUntilNextGame)
     
-    // Optimistically update the UI input field so the user sees what was selected
-    setGameDate({ date: dateToSave })
+    return nextGameDate.toISOString().split("T")[0]
   }
 
-  // 2. Build the payload with the automatically calculated date if needed
-  const payload = {
-    date: dateToSave
-  }
-  
-  const { error } = await supabase
-    .from("settings")
-    .upsert({ 
-      key: "game_date",
-      value: payload, // Saves the structured object to your JSONB value column
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' })
+  const handleSaveGameDate = async () => {
+    setIsSavingGameDate(true)
+    const supabase = createClient()
+    
+    let dateToSave = gameDate.date
+    if (!dateToSave) {
+      dateToSave = getAutomaticGameDate()
+      setGameDate({ date: dateToSave })
+    }
 
-  if (error) {
-    console.error("Failed to save game date:", error)
-    alert(`Error saving date: ${error.message}`)
-  } else {
-    alert(`Game date saved successfully as ${dateToSave}!`)
+    const payload = {
+      date: dateToSave
+    }
+    
+    const { error } = await supabase
+      .from("settings")
+      .upsert({ 
+        key: "game_date",
+        value: payload,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' })
+
+    if (error) {
+      console.error("Failed to save game date:", error)
+      alert(`Error saving date: ${error.message}`)
+    } else {
+      alert(`Game date saved successfully as ${dateToSave}!`)
+    }
+    setIsSavingGameDate(false)
   }
-  setIsSavingGameDate(false)
-}
 
   const handleSaveRules = async () => {
     setIsSavingRules(true)
@@ -602,7 +564,6 @@ const getAutomaticGameDate = (): string => {
                     Select Game Date
                   </label>
                   
-                  {/* Flex row container to hold the input field and fallback label side by side */}
                   <div className="flex flex-wrap items-center gap-3">
                     <Input
                       type="date"
@@ -611,7 +572,6 @@ const getAutomaticGameDate = (): string => {
                       className="w-full max-w-xs"
                     />
                     
-                    {/* Visual badge that displays automatically when input selection is empty */}
                     {!gameDate.date && computedFallback && (
                       <span className="text-xs font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/20 px-2.5 py-1.5 rounded-md animate-pulse">
                         Will default to: {new Date(computedFallback).toLocaleDateString("en-US", {
@@ -676,7 +636,6 @@ const getAutomaticGameDate = (): string => {
                   </div>
                 </div>
 
-                {/* --- START OF NEW DATE TOGGLE --- */}
                 <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border border-border/50">
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -696,7 +655,6 @@ const getAutomaticGameDate = (): string => {
                     </span>
                   </div>
                 </div>
-                {/* --- END OF NEW DATE TOGGLE --- */}
 
                 <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border border-border/50">
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -753,7 +711,6 @@ const getAutomaticGameDate = (): string => {
               </div>
             </section>
 
-            {/* --- START OF NEW QR CODE OVERRIDE SECTION --- */}
             <section className="bg-card rounded-lg border border-border p-6 mt-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-2">
                 On-Site QR Code Bypass
@@ -767,17 +724,16 @@ const getAutomaticGameDate = (): string => {
                   <span className="block text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
                     Bypass Link
                   </span>
-<code className="text-xs bg-background p-2 rounded border block select-all break-all text-blue-600 font-mono">
-  https://114meridian.vercel.app/?id=7492
-</code>
+                  <code className="text-xs bg-background p-2 rounded border block select-all break-all text-blue-600 font-mono">
+                    https://114meridian.vercel.app/?id=7492
+                  </code>
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
-                  💡 <strong>What to do next:</strong> Copy that link (`https://114meridian.vercel.app/?bypass=meridian_vip`) and paste it into any free online QR code generator (like qr-code-generator.com). Print that QR code out and tape it up at your basketball gym venue so people can register at the door!
+                  💡 <strong>What to do next:</strong> Copy that link above (`https://114meridian.vercel.app/?id=7492`) and paste it into any free online QR code generator. Print that QR code out and tape it up at your basketball gym venue so people can register at the door!
                 </p>
               </div>
             </section>
-            {/* --- END OF NEW QR CODE OVERRIDE SECTION --- */}
             
             <section className="bg-card rounded-lg border border-border p-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-4">Game Rules</h2>
