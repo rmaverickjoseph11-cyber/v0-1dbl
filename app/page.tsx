@@ -12,6 +12,26 @@ interface BrandingSettings {
   title: string
   image_url: string | null
 }
+const getAutomaticGameDate = (): string => {
+  const now = new Date()
+  const dayOfWeek = now.getDay() // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+  const gameDays = [2, 4, 6] // Tuesday, Thursday, Saturday
+
+  // If today is Tuesday, Thursday, or Saturday, use today's date
+  if (gameDays.includes(dayOfWeek)) {
+    return now.toISOString().split("T")[0]
+  }
+
+  // Find how many days to look forward to hit the next game day
+  let daysUntilNextGame = 1
+  while (!gameDays.includes((dayOfWeek + daysUntilNextGame) % 7)) {
+    daysUntilNextGame++
+  }
+
+  const nextGameDate = new Date(now)
+  nextGameDate.setDate(now.getDate() + daysUntilNextGame)
+  return nextGameDate.toISOString().split("T")[0]
+}
 
 export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0)
@@ -29,51 +49,71 @@ export default function Home() {
   })
 
   useEffect(() => {
-    const fetchData = async () => {
-      const supabase = createClient()
+  const fetchData = async () => {
+    const supabase = createClient()
+    
+    try {
+      // 1. REPLACED: Fetch Game Date with Automated Checker
+      const { data: dateData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "game_date")
+        .single()
       
-      try {
-        // Fetch Game Date
-        const { data: dateData } = await supabase
-          .from("settings")
-          .select("value")
-          .eq("key", "game_date")
-          .single()
+      const todayStr = new Date().toISOString().split("T")[0]
+      let currentDbDate = dateData?.value?.date
+
+      // If the database date is blank OR it is a date in the past, auto-generate and auto-save it!
+      if (!currentDbDate || currentDbDate < todayStr) {
+        const automatedTrailingDate = getAutomaticGameDate()
         
-        if (dateData?.value?.date) {
-          setGameDate(dateData.value.date)
-        }
-
-        // Fetch Game Rules
-        const { data: rulesData } = await supabase
+        // Silently save it directly to the database behind the scenes
+        await supabase
           .from("settings")
-          .select("value")
-          .eq("key", "game_rules")
-          .single()
+          .upsert({ 
+            key: "game_date",
+            value: { date: automatedTrailingDate },
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
 
-        if (rulesData?.value?.text) {
-          setRules(rulesData.value.text)
-        }
-
-        // NEW: Fetch Branding Configuration (Title & Banner)
-        const { data: brandingData } = await supabase
-          .from("settings")
-          .select("value")
-          .eq("key", "branding_config")
-          .single()
-        
-        if (brandingData?.value) {
-          setBranding(brandingData.value as BrandingSettings)
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error)
-      } finally {
-        // Data fetching is done, stop showing the loading screen
-        setIsLoading(false)
+        setGameDate(automatedTrailingDate)
+      } else {
+        // If it's already an upcoming/valid game day, just display it
+        setGameDate(currentDbDate)
       }
+
+      // 2. UNCHANGED: Fetch Game Rules
+      const { data: rulesData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "game_rules")
+        .single()
+
+      if (rulesData?.value?.text) {
+        setRules(rulesData.value.text)
+      }
+
+      // 3. UNCHANGED: Fetch Branding Configuration (Title & Banner)
+      const { data: brandingData } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "branding_config")
+        .single()
+      
+      if (brandingData?.value) {
+        setBranding(brandingData.value as BrandingSettings)
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error)
+    } finally {
+      // Data fetching is done, stop showing the loading screen
+      setIsLoading(false)
     }
-    fetchData()
-  }, [])
+  }
+  fetchData()
+}, [])
+
+  
 
   const handleRegistrationSuccess = () => {
     setRefreshKey((prev) => prev + 1)
