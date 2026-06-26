@@ -55,6 +55,14 @@ export default function AdminPage() {
     date: null,
   })
   const [isSavingGameDate, setIsSavingGameDate] = useState(false)
+  
+const [computedFallback, setComputedFallback] = useState<string>("")
+
+  useEffect(() => {
+    if (isAuthorized) {
+      setComputedFallback(getAutomaticGameDate())
+    }
+  }, [isAuthorized])
 
   const [rules, setRules] = useState("")
   const [isSavingRules, setIsSavingRules] = useState(false)
@@ -487,14 +495,31 @@ const getAutomaticGameDate = (): string => {
                   <label className="block text-sm font-medium text-card-foreground mb-1.5">
                     Select Game Date
                   </label>
-                  <Input
-                    type="date"
-                    value={gameDate.date || ""}
-                    onChange={(e) => setGameDate({ date: e.target.value || null })}
-                    className="w-full max-w-xs"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    This date will be displayed on the registration page
+                  
+                  {/* Flex row container to hold the input field and fallback label side by side */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Input
+                      type="date"
+                      value={gameDate.date || ""}
+                      onChange={(e) => setGameDate({ date: e.target.value || null })}
+                      className="w-full max-w-xs"
+                    />
+                    
+                    {/* Visual badge that displays automatically when input selection is empty */}
+                    {!gameDate.date && computedFallback && (
+                      <span className="text-xs font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/20 px-2.5 py-1.5 rounded-md animate-pulse">
+                        Will default to: {new Date(computedFallback).toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric"
+                        })}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    This date will be displayed on the registration page. Leave blank to automatically select the nearest schedule.
                   </p>
                 </div>
                 <Button 
