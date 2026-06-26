@@ -186,14 +186,6 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-md">
-      {/* 4. OPTIONAL VISUAL FEEDBACK: Lets the player know the bypass is working */}
-      {isQROverride && (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-2 text-center animate-pulse">
-           <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
-              ⚡ Venue QR Code Active (Bypass Enabled)
-           </p>
-        </div>
-      )}
 
       {isReserveOnly && (
         <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-2 text-center">
