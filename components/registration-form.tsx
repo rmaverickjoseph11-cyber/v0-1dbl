@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+// 1. Import useSearchParams to read URL parameters
+import { useSearchParams } from "next/navigation" 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -18,6 +20,10 @@ interface RegistrationSettings {
 }
 
 export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
+  // 2. Initialize search params to detect "?bypass=meridian_vip"
+  const searchParams = useSearchParams()
+  const isQROverride = searchParams.get("bypass") === "meridian_vip"
+
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -28,7 +34,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   const [isReserveOnly, setIsReserveOnly] = useState(false)
 
   useEffect(() => {
-    // 1. ADDED CHECK: Prevent access if this mobile device already registered
+    // Prevent access if this mobile device already registered
     const deviceRegistered = localStorage.getItem("device_registered")
     if (deviceRegistered === "true") {
       setIsRegistrationOpen(false)
@@ -58,6 +64,15 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         setIsReserveOnly(true)
       }
 
+      // 3. MODIFIED CHECK: Skip standard validation flags if QR code bypass is present
+      if (isQROverride) {
+        setIsRegistrationOpen(true)
+        setRegistrationMessage(null)
+        setIsCheckingSettings(false)
+        return
+      }
+
+      // Standard gate checking logic below
       if (!settings.enabled) {
         setIsRegistrationOpen(false)
         setRegistrationMessage("Registration is currently closed.")
@@ -138,9 +153,8 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         throw insertError
       }
 
-      // 2. ADDED LOCK: Store flags locally on the device upon a successful submission
+      // Store flags locally on the device upon a successful submission
       localStorage.setItem("device_registered", "true")
-      // Set an individual item cookie valid for roughly a year
       document.cookie = "device_registered=true; max-age=31536000; path=/; SameSite=Strict; Secure"
 
       setName("")
@@ -172,10 +186,19 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-md">
+      {/* 4. OPTIONAL VISUAL FEEDBACK: Lets the player know the bypass is working */}
+      {isQROverride && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-2 text-center animate-pulse">
+           <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
+              ⚡ Venue QR Code Active (Bypass Enabled)
+           </p>
+        </div>
+      )}
+
       {isReserveOnly && (
         <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-2 text-center">
            <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
-             Adding to Reserve List
+              Adding to Reserve List
            </p>
         </div>
       )}

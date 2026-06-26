@@ -647,6 +647,35 @@ const getAutomaticGameDate = (): string => {
               </div>
             </section>
 
+{/* Your existing Registration Settings block ends here */}
+            </section>
+
+            {/* --- START OF NEW QR CODE OVERRIDE SECTION --- */}
+            <section className="bg-card rounded-lg border border-border p-6 mt-6">
+              <h2 className="text-xl font-semibold text-card-foreground mb-2">
+                On-Site QR Code Bypass
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Players who scan this link can register at the court even if you have toggled registration "Disabled" above. 
+              </p>
+              
+              <div className="flex flex-col gap-4">
+                <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-md">
+                  <span className="block text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
+                    Bypass Link
+                  </span>
+                  <code className="text-xs bg-background p-2 rounded border block select-all break-all text-blue-600 font-mono">
+                    https://114meridian.vercel.app/?bypass=meridian_vip
+                  </code>
+                </div>
+                
+                <p className="text-xs text-muted-foreground">
+                  💡 <strong>What to do next:</strong> Copy that link (`https://114meridian.vercel.app/?bypass=meridian_vip`) and paste it into any free online QR code generator (like qr-code-generator.com). Print that QR code out and tape it up at your basketball gym venue so people can register at the door!
+                </p>
+              </div>
+            </section>
+            {/* --- END OF NEW QR CODE OVERRIDE SECTION --- */}
+            
             <section className="bg-card rounded-lg border border-border p-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-4">Game Rules</h2>
               <div className="flex flex-col gap-4">
