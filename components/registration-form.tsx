@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// 1. Import useSearchParams to read URL parameters
 import { useSearchParams } from "next/navigation" 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,10 +19,8 @@ interface RegistrationSettings {
 }
 
 export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
-  // 2. Initialize search params to detect "?bypass=meridian_vip"
   const searchParams = useSearchParams()
-  // Change this line at the top of your registration component
-const isQROverride = searchParams.get("id") === "7492"
+  const isQROverride = searchParams.get("id") === "7492"
 
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
@@ -73,11 +70,9 @@ const isQROverride = searchParams.get("id") === "7492"
         setIsReserveOnly(true)
       }
 
-      // --- NEW LOGIC: VERIFY GAME DATE FOR BYPASS ---
-      // Get the scheduled date string (e.g., "2026-06-26")
+      // --- VERIFY GAME DATE FOR BYPASS ---
       let scheduledGameDateStr = gameDateData?.value?.date
       
-      // If the admin panel left game date blank, use your automatic day calculator fallback
       if (!scheduledGameDateStr) {
         const dayOfWeek = now.getDay()
         const gameDays = [2, 4, 6] // Tue, Thu, Sat
@@ -99,13 +94,21 @@ const isQROverride = searchParams.get("id") === "7492"
 
       // If they are scanning the QR code, enforce that today must match game day
       if (isQROverride) {
+        // 🛑 ANTI-CHEAT RESTRICTION: Double check the device lock even when bypassing settings via QR link
+        const deviceRegistered = localStorage.getItem("device_registered")
+        if (deviceRegistered === "true") {
+          setIsRegistrationOpen(false)
+          setRegistrationMessage("This device has already registered a player for this game.")
+          setIsCheckingSettings(false)
+          return
+        }
+
         if (todayStr === scheduledGameDateStr) {
           setIsRegistrationOpen(true)
           setRegistrationMessage(null)
           setIsCheckingSettings(false)
           return
         } else {
-          // If they try to scan the QR link on a non-game day, it stays locked
           setIsRegistrationOpen(false)
           setRegistrationMessage("This QR code is only active on game day.")
           setIsCheckingSettings(false)
@@ -228,7 +231,6 @@ const isQROverride = searchParams.get("id") === "7492"
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-md">
-
       {isReserveOnly && (
         <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-2 text-center">
            <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
