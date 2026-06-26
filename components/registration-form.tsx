@@ -32,16 +32,37 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   const [isReserveOnly, setIsReserveOnly] = useState(false)
 
   useEffect(() => {
-    // Prevent access if this mobile device already registered
-    const deviceRegistered = localStorage.getItem("device_registered")
-    if (deviceRegistered === "true") {
-      setIsRegistrationOpen(false)
-      setRegistrationMessage("This device has already registered. Only 1 registration per mobile is allowed.")
-      setIsCheckingSettings(false)
-      return
+    const checkExistingDeviceRegistration = async () => {
+      const deviceRegistered = localStorage.getItem("device_registered")
+      
+      if (deviceRegistered === "true") {
+        setIsCheckingSettings(true)
+        const supabase = createClient()
+        
+        // Fetch if there are any active players on the list
+        const { data: activePlayers } = await supabase
+          .from("players")
+          .select("id")
+          .limit(1)
+
+        // 💡 SELF-CLEANING LOCK: If an admin cleared the database board for a new game day,
+        // we automatically unlock this phone's memory so they can register fresh!
+        if (!activePlayers || activePlayers.length === 0) {
+          localStorage.removeItem("device_registered")
+          document.cookie = "device_registered=; max-age=0; path=/; SameSite=Strict; Secure"
+        } else {
+          // If a registration still exists globally, enforce the blocking screen
+          setIsRegistrationOpen(false)
+          setRegistrationMessage("This device has already registered. Only 1 registration per mobile is allowed.")
+          setIsCheckingSettings(false)
+          return
+        }
+      }
+
+      checkRegistrationWindow()
     }
 
-    checkRegistrationWindow()
+    checkExistingDeviceRegistration()
   }, [])
 
   const checkRegistrationWindow = async () => {
@@ -94,7 +115,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
       // If they are scanning the QR code, enforce that today must match game day
       if (isQROverride) {
-        // 🛑 ANTI-CHEAT RESTRICTION: Double check the device lock even when bypassing settings via QR link
+        // Double check the local lock state even on valid QR bypass URL parameters
         const deviceRegistered = localStorage.getItem("device_registered")
         if (deviceRegistered === "true") {
           setIsRegistrationOpen(false)
