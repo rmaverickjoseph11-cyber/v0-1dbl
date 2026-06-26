@@ -22,7 +22,8 @@ interface RegistrationSettings {
 export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   // 2. Initialize search params to detect "?bypass=meridian_vip"
   const searchParams = useSearchParams()
-  const isQROverride = searchParams.get("bypass") === "meridian_vip"
+  // Change this line at the top of your registration component
+const isQROverride = searchParams.get("id") === "7492"
 
   const [name, setName] = useState("")
   const [code, setCode] = useState("")

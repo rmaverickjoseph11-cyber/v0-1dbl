@@ -661,9 +661,9 @@ const getAutomaticGameDate = (): string => {
                   <span className="block text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
                     Bypass Link
                   </span>
-                  <code className="text-xs bg-background p-2 rounded border block select-all break-all text-blue-600 font-mono">
-                    https://114meridian.vercel.app/?bypass=meridian_vip
-                  </code>
+<code className="text-xs bg-background p-2 rounded border block select-all break-all text-blue-600 font-mono">
+  https://114meridian.vercel.app/?id=7492
+</code>
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
