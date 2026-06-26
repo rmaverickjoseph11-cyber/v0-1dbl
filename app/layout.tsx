@@ -7,7 +7,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: '',
+  title: 'BASKETBALL REGISTRATION',
   description: 'Register for the 1 Day Basketball League',
   generator: 'v0.app',
   icons: {
