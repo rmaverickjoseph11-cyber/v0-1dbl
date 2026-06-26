@@ -219,9 +219,13 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         throw insertError
       }
 
-      // Store flags locally on the device upon a successful submission
+      // 1. Store flags locally on the device
       localStorage.setItem("device_registered", "true")
       document.cookie = "device_registered=true; max-age=31536000; path=/; SameSite=Strict; Secure"
+
+      // 2. 🛑 INSTANT LOCKOUT: Force the component to close immediately without a refresh
+      setIsRegistrationOpen(false)
+      setRegistrationMessage("This device has already registered a player for this game.")
 
       setName("")
       setCode("")
@@ -233,7 +237,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       setIsLoading(false)
     }
   }
-
+  
   if (isCheckingSettings) {
     return (
       <div className="flex items-center justify-center py-4">
