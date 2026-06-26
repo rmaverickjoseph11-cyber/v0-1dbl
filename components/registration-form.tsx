@@ -50,28 +50,69 @@ const isQROverride = searchParams.get("id") === "7492"
   const checkRegistrationWindow = async () => {
     setIsCheckingSettings(true)
     const supabase = createClient()
+    const now = new Date()
     
+    // 1. Fetch the registration window settings
     const { data } = await supabase
       .from("settings")
       .select("*")
       .eq("key", "registration_window")
       .single()
 
+    // 2. Fetch the game date setting from the database
+    const { data: gameDateData } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("key", "game_date")
+      .single()
+
     if (data) {
       const settings = data.value as RegistrationSettings
-      const now = new Date()
       
       if (settings.default_to_reserve) {
         setIsReserveOnly(true)
       }
 
-      // 3. MODIFIED CHECK: Skip standard validation flags if QR code bypass is present
-      if (isQROverride) {
-        setIsRegistrationOpen(true)
-        setRegistrationMessage(null)
-        setIsCheckingSettings(false)
-        return
+      // --- NEW LOGIC: VERIFY GAME DATE FOR BYPASS ---
+      // Get the scheduled date string (e.g., "2026-06-26")
+      let scheduledGameDateStr = gameDateData?.value?.date
+      
+      // If the admin panel left game date blank, use your automatic day calculator fallback
+      if (!scheduledGameDateStr) {
+        const dayOfWeek = now.getDay()
+        const gameDays = [2, 4, 6] // Tue, Thu, Sat
+        if (gameDays.includes(dayOfWeek)) {
+          scheduledGameDateStr = now.toISOString().split("T")[0]
+        } else {
+          let daysUntilNextGame = 1
+          while (!gameDays.includes((dayOfWeek + daysUntilNextGame) % 7)) {
+            daysUntilNextGame++
+          }
+          const nextGame = new Date(now)
+          nextGame.setDate(now.getDate() + daysUntilNextGame)
+          scheduledGameDateStr = nextGame.toISOString().split("T")[0]
+        }
       }
+
+      // Format today's local date to "YYYY-MM-DD"
+      const todayStr = now.toLocaleDateString("sv-SE") 
+
+      // If they are scanning the QR code, enforce that today must match game day
+      if (isQROverride) {
+        if (todayStr === scheduledGameDateStr) {
+          setIsRegistrationOpen(true)
+          setRegistrationMessage(null)
+          setIsCheckingSettings(false)
+          return
+        } else {
+          // If they try to scan the QR link on a non-game day, it stays locked
+          setIsRegistrationOpen(false)
+          setRegistrationMessage("This on-site QR code bypass is only active on game day.")
+          setIsCheckingSettings(false)
+          return
+        }
+      }
+      // --- END OF NEW LOGIC ---
 
       // Standard gate checking logic below
       if (!settings.enabled) {
