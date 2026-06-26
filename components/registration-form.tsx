@@ -107,7 +107,7 @@ const isQROverride = searchParams.get("id") === "7492"
         } else {
           // If they try to scan the QR link on a non-game day, it stays locked
           setIsRegistrationOpen(false)
-          setRegistrationMessage("This on-site QR code bypass is only active on game day.")
+          setRegistrationMessage("This QR code is only active on game day.")
           setIsCheckingSettings(false)
           return
         }
