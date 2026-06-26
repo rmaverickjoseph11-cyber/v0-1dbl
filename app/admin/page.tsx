@@ -647,9 +647,6 @@ const getAutomaticGameDate = (): string => {
               </div>
             </section>
 
-{/* Your existing Registration Settings block ends here */}
-            </section>
-
             {/* --- START OF NEW QR CODE OVERRIDE SECTION --- */}
             <section className="bg-card rounded-lg border border-border p-6 mt-6">
               <h2 className="text-xl font-semibold text-card-foreground mb-2">
