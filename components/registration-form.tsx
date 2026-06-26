@@ -19,7 +19,7 @@ interface RegistrationSettings {
 
 export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   const [name, setName] = useState("")
-  const [code, setCode] = useState("") // New state for the 4-digit code
+  const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingSettings, setIsCheckingSettings] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,6 +28,15 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   const [isReserveOnly, setIsReserveOnly] = useState(false)
 
   useEffect(() => {
+    // 1. ADDED CHECK: Prevent access if this mobile device already registered
+    const deviceRegistered = localStorage.getItem("device_registered")
+    if (deviceRegistered === "true") {
+      setIsRegistrationOpen(false)
+      setRegistrationMessage("This device has already registered. Only 1 registration per mobile is allowed.")
+      setIsCheckingSettings(false)
+      return
+    }
+
     checkRegistrationWindow()
   }, [])
 
@@ -91,9 +100,8 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
     setIsCheckingSettings(false)
   }
 
-  // Helper to ensure code is only 4 numbers
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, "") // Remove non-numeric characters
+    const val = e.target.value.replace(/\D/g, "")
     if (val.length <= 4) {
       setCode(val)
     }
@@ -102,7 +110,6 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validation
     if (!name.trim()) {
       setError("Please enter your name")
       return
@@ -123,7 +130,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         .from("players")
         .insert({ 
           name: name.trim(),
-          code: code, // Saving the 4-digit number to the 'code' column
+          code: code,
           status: initialStatus 
         })
 
@@ -131,8 +138,13 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         throw insertError
       }
 
+      // 2. ADDED LOCK: Store flags locally on the device upon a successful submission
+      localStorage.setItem("device_registered", "true")
+      // Set an individual item cookie valid for roughly a year
+      document.cookie = "device_registered=true; max-age=31536000; path=/; SameSite=Strict; Secure"
+
       setName("")
-      setCode("") // Reset code on success
+      setCode("")
       onSuccess()
     } catch (err) {
       setError("Failed to register. Please try again.")
@@ -152,8 +164,8 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
   if (!isRegistrationOpen) {
     return (
-      <div className="bg-muted rounded-lg p-4 text-center">
-        <p className="text-muted-foreground">{registrationMessage}</p>
+      <div className="bg-muted rounded-lg p-4 text-center max-w-md mx-auto border border-amber-500/20 bg-amber-500/5">
+        <p className="text-muted-foreground font-medium">{registrationMessage}</p>
       </div>
     )
   }
